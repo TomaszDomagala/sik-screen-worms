@@ -1,0 +1,1 @@
+add_executable(screen-worms-server main.c)
