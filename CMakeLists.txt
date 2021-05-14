@@ -4,5 +4,3 @@ project(sik_screen_worms C)
 set(CMAKE_C_STANDARD 11)
 
 add_subdirectory(src)
-
-add_executable(sik_screen_worms main.c)
