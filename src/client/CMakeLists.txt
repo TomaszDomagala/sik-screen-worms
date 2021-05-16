@@ -1,2 +1,7 @@
-add_executable(screen-worms-client main.c params.c)
-target_link_libraries(screen-worms-client sik-common)
+add_library(sik-client params.c)
+target_include_directories(sik-client PUBLIC ${CMAKE_CURRENT_LIST_DIR})
+target_link_libraries(sik-client sik-common)
+
+add_executable(screen-worms-client main.c)
+target_link_libraries(screen-worms-client sik-client sik-common)
+
