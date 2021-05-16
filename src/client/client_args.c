@@ -1,9 +1,10 @@
-#include "params.h"
+#include "client_args.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <string.h>
+#include <errno.h>
 
 /**
  * Valid player name is a 1-20 long ascii string with values between 33-126.
@@ -21,16 +22,30 @@ bool player_name_valid(char *player_name) {
 	return true;
 }
 
-
-client_parse_error_t parse_client_args(int argc, char **argv, client_parameters_t *params) {
-	bool player_name_set = false;
-	int opt;
+uint32_t read_port(char *port_str) {
 	char *err_ptr = NULL;
 
-	params->server_port = 2021;
-	params->gui_address = "localhost";
-	params->gui_port = 20210;
+	errno = 0;
+	long res = strtol(port_str, &err_ptr, 10);
+	if (errno != 0 || err_ptr == port_str || *err_ptr != '\0') {
+		return -1;
+	}
+	if (res < 0) {
+		return -1;
+	}
+	return res;
+}
 
+
+client_parse_error_t parse_client_args(int argc, char **argv, client_args_t *args) {
+	bool player_name_set = false;
+	int opt;
+
+	args->server_port = 2021;
+	args->gui_address = "localhost";
+	args->gui_port = 20210;
+
+	optind = 1;
 	while ((opt = getopt(argc, argv, "n:p:i:r:")) != -1) {
 		switch (opt) {
 			case 'n': // player_name
@@ -38,22 +53,20 @@ client_parse_error_t parse_client_args(int argc, char **argv, client_parameters_
 					return cpe_InvalidPlayerName;
 				}
 				player_name_set = true;
-				params->player_name = optarg;
+				args->player_name = optarg;
 				break;
 			case 'p': // server_port
-				params->server_port = strtol(optarg, &err_ptr, 10);
-				if (err_ptr != NULL) {
+				args->server_port = read_port(optarg);
+				if (args->server_port == -1)
 					return cpe_InvalidArgument;
-				}
 				break;
 			case 'i': // gui_server_address
-				params->gui_address = optarg;
+				args->gui_address = optarg;
 				break;
 			case 'r': // gui_port
-				params->gui_port = strtol(optarg, &err_ptr, 10);
-				if (err_ptr != NULL) {
+				args->gui_port = read_port(optarg);
+				if (args->gui_port == -1)
 					return cpe_InvalidArgument;
-				}
 				break;
 			default: // ?
 				return cpe_InvalidArgument;
@@ -65,6 +78,6 @@ client_parse_error_t parse_client_args(int argc, char **argv, client_parameters_
 	if (optind >= argc) {
 		return cpe_MissingServerAddress;
 	}
-	params->server_address = argv[optind];
+	args->server_address = argv[optind];
 	return cpe_Success;
 }

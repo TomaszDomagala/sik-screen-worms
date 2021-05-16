@@ -1,5 +1,5 @@
-#ifndef SIK_SCREEN_WORMS_PARAMS_H
-#define SIK_SCREEN_WORMS_PARAMS_H
+#ifndef SIK_SCREEN_WORMS_CLIENT_ARGS_H
+#define SIK_SCREEN_WORMS_CLIENT_ARGS_H
 
 #include <stdint.h>
 
@@ -11,12 +11,12 @@ typedef struct {
 
 	char *gui_address;
 	int32_t gui_port;
-} client_parameters_t;
+} client_args_t;
 
 typedef enum {
 	cpe_Success, cpe_MissingPlayerName, cpe_MissingServerAddress, cpe_InvalidPlayerName, cpe_InvalidArgument
 } client_parse_error_t;
 
-client_parse_error_t parse_client_args(int argc, char **argv, client_parameters_t *params);
+client_parse_error_t parse_client_args(int argc, char **argv, client_args_t *args);
 
-#endif //SIK_SCREEN_WORMS_PARAMS_H
+#endif //SIK_SCREEN_WORMS_CLIENT_ARGS_H

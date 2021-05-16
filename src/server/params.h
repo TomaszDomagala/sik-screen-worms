@@ -1,4 +1,4 @@
-#ifndef SIK_SCREEN_WORMS_PARAMS_H
+#ifndef SIK_SCREEN_WORMS_CLIENT_ARGS_H
 #define SIK_SCREEN_WORMS_PARAMS_H
 
 #include <stdint.h>
@@ -14,4 +14,4 @@ typedef struct {
 
 int parse_server_args(int argc, char **argv, server_parameters_t *params);
 
-#endif //SIK_SCREEN_WORMS_PARAMS_H
+#endif //SIK_SCREEN_WORMS_CLIENT_ARGS_H
