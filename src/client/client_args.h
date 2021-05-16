@@ -14,9 +14,9 @@ typedef struct {
 } client_args_t;
 
 typedef enum {
-	cpe_Success, cpe_MissingPlayerName, cpe_MissingServerAddress, cpe_InvalidPlayerName, cpe_InvalidArgument
-} client_parse_error_t;
+	cpr_Success, cpr_MissingPlayerName, cpr_MissingServerAddress, cpr_InvalidPlayerName, cpr_InvalidArgument
+} cp_res_t;
 
-client_parse_error_t parse_client_args(int argc, char **argv, client_args_t *args);
+cp_res_t parse_client_args(int argc, char **argv, client_args_t *args);
 
 #endif //SIK_SCREEN_WORMS_CLIENT_ARGS_H

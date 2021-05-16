@@ -20,9 +20,9 @@ void all_params() {
 	int argc = 10;
 
 	client_args_t args;
-	client_parse_error_t res = parse_client_args(argc, argv, &args);
+	cp_res_t res = parse_client_args(argc, argv, &args);
 
-	TEST_ASSERT_EQUAL(cpe_Success, res);
+	TEST_ASSERT_EQUAL(cpr_Success, res);
 	TEST_ASSERT_EQUAL(4321, args.server_port);
 	TEST_ASSERT_EQUAL(54321, args.gui_port);
 	TEST_ASSERT_EQUAL_STRING("server.com", args.server_address);
@@ -39,9 +39,9 @@ void invalid_port() {
 	int argc = 6;
 
 	client_args_t args;
-	client_parse_error_t res = parse_client_args(argc, argv, &args);
+	cp_res_t res = parse_client_args(argc, argv, &args);
 
-	TEST_ASSERT_EQUAL(cpe_InvalidArgument, res);
+	TEST_ASSERT_EQUAL(cpr_InvalidArgument, res);
 }
 
 void no_server_address() {
@@ -52,9 +52,9 @@ void no_server_address() {
 	int argc = 3;
 
 	client_args_t args;
-	client_parse_error_t res = parse_client_args(argc, argv, &args);
+	cp_res_t res = parse_client_args(argc, argv, &args);
 
-	TEST_ASSERT_EQUAL(cpe_MissingServerAddress, res);
+	TEST_ASSERT_EQUAL(cpr_MissingServerAddress, res);
 }
 
 void no_player_name() {
@@ -64,9 +64,9 @@ void no_player_name() {
 	int argc = 2;
 
 	client_args_t args;
-	client_parse_error_t res = parse_client_args(argc, argv, &args);
+	cp_res_t res = parse_client_args(argc, argv, &args);
 
-	TEST_ASSERT_EQUAL(cpe_MissingPlayerName, res);
+	TEST_ASSERT_EQUAL(cpr_MissingPlayerName, res);
 }
 
 void missing_argument_value(){
@@ -77,9 +77,9 @@ void missing_argument_value(){
 	int argc = 3;
 
 	client_args_t args;
-	client_parse_error_t res = parse_client_args(argc, argv, &args);
+	cp_res_t res = parse_client_args(argc, argv, &args);
 
-	TEST_ASSERT_EQUAL(cpe_InvalidArgument, res);
+	TEST_ASSERT_EQUAL(cpr_InvalidArgument, res);
 }
 
 int main() {

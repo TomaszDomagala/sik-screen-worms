@@ -1,40 +1,37 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
+#include <stdbool.h>
+#include "client_args.h"
+#include "err.h"
+
+/**
+ * Returns if result is success.
+ * Prints error message and exits on error.
+ */
+void handle_parse_result(cp_res_t result) {
+	if (result == cpr_Success)
+		return;
+	fprintf(stderr, "Usage: ./screen-worms-client game_server [-n player_name] [-p n] [-i gui_server] [-r n]\n");
+	switch (result) {
+		case cpr_MissingPlayerName:
+			fatal("missing [ -n player_name ] argument\n");
+		case cpr_MissingServerAddress:
+			fatal("missing game_server argument\n");
+		case cpr_InvalidPlayerName:
+			fatal("invalid [ -n player_name ] argument\n");
+		case cpr_InvalidArgument:
+			fatal("invalid argument\n");
+		default:
+			assert(false);
+	}
+}
 
 int main(int argc, char *argv[]) {
-	int flags, opt;
-	int nsecs, tfnd;
+	client_args_t args;
 
-	nsecs = 0;
-	tfnd = 0;
-	flags = 0;
-	while ((opt = getopt(argc, argv, "nt:")) != -1) {
-		switch (opt) {
-			case 'n':
-				flags = 1;
-				break;
-			case 't':
-				nsecs = atoi(optarg);
-				tfnd = 1;
-				break;
-			default: /* '?' */
-				fprintf(stderr, "Usage: %s [-t nsecs] [-n] name\n",
-						argv[0]);
-				exit(EXIT_FAILURE);
-		}
-	}
+	cp_res_t res = parse_client_args(argc, argv, &args);
+	handle_parse_result(res);
 
-	printf("flags=%d; tfnd=%d; optind=%d\n", flags, tfnd, optind);
-
-	if (optind >= argc) {
-		fprintf(stderr, "Expected argument after options\n");
-		exit(EXIT_FAILURE);
-	}
-
-	printf("name argument = %s\n", argv[optind]);
-
-	/* Other code omitted */
-
-	exit(EXIT_SUCCESS);
 }

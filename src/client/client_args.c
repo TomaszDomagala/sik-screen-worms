@@ -22,6 +22,11 @@ bool player_name_valid(char *player_name) {
 	return true;
 }
 
+/**
+ * Read string representing port and return it's value.
+ * @param port_str - port string.
+ * @return port value or -1 if port_str is invalid port.
+ */
 uint32_t read_port(char *port_str) {
 	char *err_ptr = NULL;
 
@@ -37,7 +42,7 @@ uint32_t read_port(char *port_str) {
 }
 
 
-client_parse_error_t parse_client_args(int argc, char **argv, client_args_t *args) {
+cp_res_t parse_client_args(int argc, char **argv, client_args_t *args) {
 	bool player_name_set = false;
 	int opt;
 
@@ -50,7 +55,7 @@ client_parse_error_t parse_client_args(int argc, char **argv, client_args_t *arg
 		switch (opt) {
 			case 'n': // player_name
 				if (!player_name_valid(optarg)) {
-					return cpe_InvalidPlayerName;
+					return cpr_InvalidPlayerName;
 				}
 				player_name_set = true;
 				args->player_name = optarg;
@@ -58,7 +63,7 @@ client_parse_error_t parse_client_args(int argc, char **argv, client_args_t *arg
 			case 'p': // server_port
 				args->server_port = read_port(optarg);
 				if (args->server_port == -1)
-					return cpe_InvalidArgument;
+					return cpr_InvalidArgument;
 				break;
 			case 'i': // gui_server_address
 				args->gui_address = optarg;
@@ -66,18 +71,18 @@ client_parse_error_t parse_client_args(int argc, char **argv, client_args_t *arg
 			case 'r': // gui_port
 				args->gui_port = read_port(optarg);
 				if (args->gui_port == -1)
-					return cpe_InvalidArgument;
+					return cpr_InvalidArgument;
 				break;
 			default: // ?
-				return cpe_InvalidArgument;
+				return cpr_InvalidArgument;
 		}
 	}
 	if (!player_name_set) {
-		return cpe_MissingPlayerName;
+		return cpr_MissingPlayerName;
 	}
 	if (optind >= argc) {
-		return cpe_MissingServerAddress;
+		return cpr_MissingServerAddress;
 	}
 	args->server_address = argv[optind];
-	return cpe_Success;
+	return cpr_Success;
 }
