@@ -38,6 +38,7 @@ int gui_client_connect(char *address, char *port, gui_client_t *client) {
 			perror("gui client: socket");
 			continue;
 		}
+		// TODO add TCP_NODELAY option.
 		if (connect(sock_fd, info->ai_addr, info->ai_addrlen) == -1) {
 			perror("gui client: connect");
 			close(sock_fd);

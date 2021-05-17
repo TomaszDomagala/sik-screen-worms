@@ -27,7 +27,7 @@ bool player_name_valid(char *player_name) {
  * @param port_str - port string.
  * @return port value or -1 if port_str is invalid port.
  */
-uint32_t read_port(char *port_str) {
+int32_t read_port(char *port_str) {
 	char *err_ptr = NULL;
 
 	errno = 0;
@@ -46,6 +46,7 @@ cp_res_t parse_client_args(int argc, char **argv, client_args_t *args) {
 	bool player_name_set = false;
 	int opt;
 
+	// Set default values.
 	args->server_port = 2021;
 	args->gui_address = "localhost";
 	args->gui_port = 20210;

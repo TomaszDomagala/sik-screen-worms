@@ -10,4 +10,7 @@ int gui_client_connect(char *address, char *port, gui_client_t *client);
 
 int gui_client_disconnect(gui_client_t *client);
 
+int gui_client_send_event();
+
+
 #endif //SIK_SCREEN_WORMS_GUI_CLIENT_H
