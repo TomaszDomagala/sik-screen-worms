@@ -33,6 +33,7 @@ int main(int argc, char *argv[]) {
 	int main_sock_fd, status;
 	struct addrinfo hints, *server_info, *info;
 	char port[6];
+	int on = 1;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -50,6 +51,11 @@ int main(int argc, char *argv[]) {
 			perror("server: socket");
 			continue;
 		}
+		if (setsockopt(main_sock_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
+			perror("server: setsockopt");
+			close(main_sock_fd);
+			continue;
+		}
 		if (bind(main_sock_fd, info->ai_addr, info->ai_addrlen) == -1) {
 			perror("server: bind");
 			close(main_sock_fd);
@@ -61,7 +67,7 @@ int main(int argc, char *argv[]) {
 		fatal("server: failed to bind\n");
 	}
 
-	freeaddrinfo(server_info);
+//	freeaddrinfo(server_info);
 
 	clients_collection_t *clients = clients_create();
 	if (clients == NULL) {
@@ -110,7 +116,7 @@ int main(int argc, char *argv[]) {
 		// Wait for new clients, new data from clients or clients timeouts.
 		action_types = epoll_wait(main_epoll_fd, events, MAX_EVENTS, -1);
 		loop_actions = 0;
-
+		printf("actions: %d\n", action_types);
 		for (i = 0; i < action_types; ++i) {
 			if (events[i].data.fd == main_sock_fd) {
 				loop_actions |= LA_NEW_CLIENT;
@@ -137,9 +143,16 @@ int main(int argc, char *argv[]) {
 			if (new_client_sock == -1) {
 				syserr("server: socket");
 			}
+			if (setsockopt(new_client_sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
+				syserr("server: setsockopt");
+			}
+			if (bind(new_client_sock, info->ai_addr, info->ai_addrlen) == -1) {
+				syserr("server: bind");
+			}
 			if (connect(new_client_sock, (struct sockaddr *) &new_client_addr, new_client_addr_len) == -1) {
 				syserr("server: connect");
 			}
+
 
 			client_t *new_client = clients_new_client(clients, 1, new_client_sock);
 			assert(new_client != NULL); // TODO handle it better.
@@ -162,8 +175,9 @@ int main(int argc, char *argv[]) {
 					memset(buffer, 0, BUFFER_SIZE);
 					new_client_addr_len = sizeof(new_client_addr);
 
-					num_bytes = recvfrom(main_sock_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &new_client_addr,
-										 &new_client_addr_len);
+					client_t *client = events[i].data.ptr;
+
+					num_bytes = recv(client->sock_fd, buffer, BUFFER_SIZE, 0);
 					printf("registered client:\n");
 					printf("read %d bytes:\n", num_bytes);
 					printf("%s\n", buffer);
