@@ -4,4 +4,3 @@ target_link_libraries(sik-client sik-common)
 
 add_executable(screen-worms-client main.c)
 target_link_libraries(screen-worms-client sik-client sik-common)
-
