@@ -7,10 +7,17 @@ struct clients_collection_s;
 
 typedef struct clients_collection_s clients_collection_t;
 
+#define CS_DISCONNECTED 0
+#define CS_OBSERVER 1
+#define CS_PLAYING 2
+
 typedef struct {
-    uint64_t session_id;
+    uint8_t status;
     int32_t sock_fd;
     int32_t timer_fd;
+
+    uint64_t session_id;
+    int8_t player_name[21];
 } client_t;
 
 /**
@@ -41,5 +48,7 @@ client_t *clients_new_client(clients_collection_t *clients, uint64_t session_id,
  * @param sock_fd - client's socket file descriptor.
  */
 void clients_delete_client(clients_collection_t *clients, int32_t sock_fd);
+
+client_t *clients_find_client_by_session_id(clients_collection_t *clients, uint64_t session_id);
 
 #endif //SIK_SCREEN_WORMS_CLIENTS_H
