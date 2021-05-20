@@ -1,5 +1,5 @@
-#ifndef SIK_SCREEN_WORMS_GAME_STATE_H
-#define SIK_SCREEN_WORMS_GAME_STATE_H
+#ifndef SIK_SCREEN_WORMS_GAME_H
+#define SIK_SCREEN_WORMS_GAME_H
 
 #include <stdint.h>
 
@@ -9,7 +9,7 @@
 #define PS_ALIVE 0x2
 #define PS_DEAD 0x4
 
-typedef struct game_state_s game_state_t;
+typedef struct game_s game_t;
 
 typedef struct {
     uint8_t status;
@@ -21,5 +21,7 @@ typedef struct {
     double y_pos;
 } player_t;
 
+game_t *game_create();
 
-#endif //SIK_SCREEN_WORMS_GAME_STATE_H
+
+#endif //SIK_SCREEN_WORMS_GAME_H

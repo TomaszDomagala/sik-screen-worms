@@ -1,7 +1,10 @@
-#include "game_state.h"
+#include "game.h"
 
 #include <stdint.h>
 #include "config.h"
+#include "utils/stack.h"
+#include "utils/list.h"
+#include "game_board.h"
 
 #define MAX_PLAYERS_NUM SERVER_MAX_CAPACITY
 
@@ -31,17 +34,15 @@ typedef union {
     ge_data_player_eliminated_t player_eliminated;
 } game_event_data_t;
 
-typedef struct game_event_s game_event_t;
 
-// TODO change to dynamic array list.
-struct game_event_s {
+struct {
     uint8_t type;
     game_event_data_t data;
-    game_event_t *next_event;
-};
+} game_event_t;
 
-struct game_state_s {
+struct game_s {
     uint32_t game_id;
-    player_t players[MAX_PLAYERS_NUM];
-
+    list_t *players;
+    stack_t *events;
+    game_board_t *board;
 };
