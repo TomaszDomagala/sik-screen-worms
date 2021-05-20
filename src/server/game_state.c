@@ -19,7 +19,7 @@ typedef struct {
     uint8_t player_number;
     uint32_t x;
     uint32_t y;
-} ge_data_new_pixel_t;
+} ge_data_pixel_t;
 
 typedef struct {
     uint8_t player_number;
@@ -27,7 +27,7 @@ typedef struct {
 
 typedef union {
     ge_data_new_game_t new_game;
-    ge_data_new_pixel_t pixel;
+    ge_data_pixel_t pixel;
     ge_data_player_eliminated_t player_eliminated;
 } game_event_data_t;
 
