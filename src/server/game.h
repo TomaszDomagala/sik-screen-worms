@@ -23,13 +23,14 @@
 typedef struct game_s game_t;
 
 typedef struct {
-    uint8_t status;
-    uint64_t session_id;
-    int8_t player_name[21];
+	uint8_t status;
+	uint64_t session_id;
+	int8_t player_name[21];
 
-    uint8_t turn_direction;
-    double x_pos;
-    double y_pos;
+	uint8_t turn_direction;
+	uint32_t direction;
+	double x_pos;
+	double y_pos;
 } player_t;
 
 game_t *game_create(uint32_t game_id, size_t width, size_t height);
@@ -38,7 +39,7 @@ uint8_t game_state(game_t *game);
 
 bool game_add_player(game_t *game, uint64_t session_id, int8_t *player_name);
 
-bool game_set_direction(game_t *game, uint64_t session_id, uint8_t turn_direction);
+bool game_set_turn_direction(game_t *game, uint64_t session_id, uint8_t turn_direction);
 
 bool game_remove_player(game_t *game, uint64_t session_id);
 
