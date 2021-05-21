@@ -25,7 +25,7 @@ void test_add_remove_list() {
     list_node_t *node = list_add(list, &num);
 
     TEST_ASSERT_EQUAL_size_t(1, list_size(list));
-    TEST_ASSERT_EQUAL(13, *((int *) list_node_element(node)));
+    TEST_ASSERT_EQUAL(13, *((int *) list_element(node)));
 
     list_remove(list, node);
     TEST_ASSERT_EQUAL_size_t(0, list_size(list));

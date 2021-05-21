@@ -2,12 +2,23 @@
 #define SIK_SCREEN_WORMS_GAME_H
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 // Player status flags.
 #define PS_NULL 0x0
-#define PS_READY 0x1
+#define PS_WAITING 0x1
 #define PS_ALIVE 0x2
 #define PS_DEAD 0x4
+
+// Game states.
+#define GS_WAITING 0
+#define GS_IN_PROGRESS 1
+#define GS_OVER 2
+
+#define PD_FORWARD 0
+#define PD_RIGHT 1
+#define PD_LEFT 2
 
 typedef struct game_s game_t;
 
@@ -21,7 +32,15 @@ typedef struct {
     double y_pos;
 } player_t;
 
-game_t *game_create();
+game_t *game_create(uint32_t game_id, size_t width, size_t height);
+
+uint8_t game_state(game_t *game);
+
+bool game_add_player(game_t *game, uint64_t session_id, int8_t *player_name);
+
+bool game_set_direction(game_t *game, uint64_t session_id, uint8_t turn_direction);
+
+bool game_remove_player(game_t *game, uint64_t session_id);
 
 
 #endif //SIK_SCREEN_WORMS_GAME_H

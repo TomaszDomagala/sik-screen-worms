@@ -18,6 +18,7 @@ size_t stack_size(stack_t *stack) {
 }
 
 void stack_free(stack_t *stack) {
+    if (stack == NULL) return;
     free(stack->data);
     free(stack);
 }

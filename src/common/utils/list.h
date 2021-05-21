@@ -15,8 +15,16 @@ size_t list_size(list_t *list);
 
 void list_remove(list_t *list, list_node_t *node);
 
-void *list_node_element(list_node_t *node);
+void *list_element(list_node_t *node);
 
 void list_free(list_t *list);
+
+list_node_t *list_head(list_t *list);
+
+list_node_t *list_tail(list_t *list);
+
+list_node_t *list_next(list_node_t *node);
+
+list_node_t *list_prev(list_node_t *node);
 
 #endif //SIK_SCREEN_WORMS_LIST_H

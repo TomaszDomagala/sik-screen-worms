@@ -36,7 +36,7 @@ size_t list_size(list_t *list) {
     return list->size;
 }
 
-void *list_node_element(list_node_t *node) {
+void *list_element(list_node_t *node) {
     return node->element;
 }
 
@@ -79,4 +79,20 @@ void list_remove(list_t *list, list_node_t *node) {
 
     free(node);
     list->size--;
+}
+
+list_node_t *list_head(list_t *list) {
+    return list->head;
+}
+
+list_node_t *list_tail(list_t *list) {
+    return list->tail;
+}
+
+list_node_t *list_next(list_node_t *node) {
+    return node->next;
+}
+
+list_node_t *list_prev(list_node_t *node) {
+    return node->prev;
 }
