@@ -42,5 +42,7 @@ bool game_set_direction(game_t *game, uint64_t session_id, uint8_t turn_directio
 
 bool game_remove_player(game_t *game, uint64_t session_id);
 
+bool game_tick(game_t *game);
+
 
 #endif //SIK_SCREEN_WORMS_GAME_H

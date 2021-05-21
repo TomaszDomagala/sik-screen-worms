@@ -164,3 +164,7 @@ bool game_set_direction(game_t *game, uint64_t session_id, uint8_t turn_directio
             break;
     }
 }
+
+bool game_tick(game_t *game) {
+    return false;
+}
