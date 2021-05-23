@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
@@ -14,6 +13,7 @@
 #include <assert.h>
 #include "clients.h"
 #include "messages.h"
+#include "game.h"
 
 #define MAX_EVENTS 32
 #define BUFFER_SIZE 512
@@ -39,13 +39,17 @@ socklen_t new_client_addr_len;
 
 struct itimerspec timer;
 
+server_args_t args;
 
-void init_server(int32_t server_port) {
+game_t *game;
+
+
+void init_server() {
 	int gai_result, on = 1;
 	struct addrinfo hints;
 
 	char port[6];
-	sprintf(port, "%d", server_port);
+	sprintf(port, "%d", args.server_port);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC; // TODO change to IPv6.
@@ -84,11 +88,11 @@ void init_clients() {
 	}
 }
 
-void init_round_timer(int32_t rounds_per_sec) {
+void init_round_timer() {
 	struct itimerspec spec;
 	memset(&spec, 0, sizeof(spec));
 	spec.it_value.tv_nsec = 1;
-	spec.it_interval.tv_nsec = 1000000000 / rounds_per_sec;
+	spec.it_interval.tv_nsec = 1000000000 / args.rounds_per_sec;
 
 	round_fd = timerfd_create(CLOCK_BOOTTIME, 0);
 
@@ -130,6 +134,22 @@ void init_epoll() {
 	}
 }
 
+void init_game() {
+	game = game_create(args.board_width, args.board_height);
+}
+
+void client_timer_stop(client_t *client) {
+	memset(&timer, 0, sizeof(timer));
+	timer.it_value.tv_sec = 0;
+	timerfd_settime(client->timer_fd, 0, &timer, NULL);
+}
+
+void client_timer_restart(client_t *client) {
+	memset(&timer, 0, sizeof(timer));
+	timer.it_value.tv_sec = 2;
+	timerfd_settime(client->timer_fd, 0, &timer, NULL);
+}
+
 void handle_client_request(client_t *client, mess_client_server_t *m_client) {
 	printf("client s_id=%lu requested neen=%d\n", client->session_id, m_client->next_expected_event_no);
 }
@@ -147,6 +167,7 @@ void handle_timeouts() {
 			if (epoll_ctl(timeout_epoll_fd, EPOLL_CTL_DEL, client->timer_fd, NULL) == -1)
 				syserr("server: epoll_ctl");
 
+			game_remove_player(game, client->session_id);
 			clients_delete_client(clients, client->sock_fd);
 		}
 
@@ -198,7 +219,13 @@ void handle_new_client() {
 
 	client_t *new_client = clients_new_client(clients, m_client.session_id, new_client_sock);
 	if (new_client == NULL) {
+		close(new_client_sock);
 		perror("handle_new_client: cannot create new client\n");
+		return;
+	}
+	if (!game_add_player(game, new_client->session_id, new_client->player_name)) {
+		clients_delete_client(clients, new_client->sock_fd);
+		perror("handle_new_client: cannot create new player\n");
 		return;
 	}
 
@@ -206,64 +233,79 @@ void handle_new_client() {
 	ev.data.ptr = new_client;
 
 	if (epoll_ctl(data_epoll_fd, EPOLL_CTL_ADD, new_client->sock_fd, &ev) == -1) {
-		syserr("server: epoll_ctl");
+		syserr("handle_new_client: epoll_ctl");
 	}
 	if (epoll_ctl(timeout_epoll_fd, EPOLL_CTL_ADD, new_client->timer_fd, &ev) == -1) {
-		syserr("server: epoll_ctl");
+		syserr("handle_new_client: epoll_ctl");
 	}
 
 	printf("new client sock=%d session_id=%lu\n", new_client->sock_fd, new_client->session_id);
 
 	handle_client_request(new_client, &m_client);
 
-	// Set 2s timeout for client.
-	memset(&timer, 0, sizeof(timer));
-	timer.it_value.tv_sec = 2;
-	timerfd_settime(new_client->timer_fd, 0, &timer, NULL);
+	client_timer_restart(new_client);
 }
 
-void handle_data() {
-	int events_num, num_bytes;
+void handle_client_message(client_t *client) {
+	client_timer_restart(client);
+
+	memset(buffer, 0, BUFFER_SIZE);
+	int num_bytes = recv(client->sock_fd, buffer, BUFFER_SIZE, 0);
+
+	mess_binary_t m_binary;
+	m_binary.size = num_bytes;
+	m_binary.data = buffer;
+
+	mess_client_server_t m_client;
+	if (deserialize_client_message(&m_binary, &m_client) == -1) {
+		fprintf(stderr, "handle_client_message: invalid client message\n");
+		return;
+	}
+	if (client->session_id != m_client.session_id) {
+		// TODO change to correct behaviour.
+		fprintf(stderr, "handle_client_message: invalid session_id\n");
+		return;
+	}
+
+	game_set_turn_direction(game, client->session_id, m_client.turn_direction);
+
+}
+
+void handle_clients() {
+	int events_num;
 
 	while ((events_num = epoll_wait(data_epoll_fd, events, MAX_EVENTS, 0)) > 0) {
 		for (int i = 0; i < events_num; ++i) {
 			client_t *client = events[i].data.ptr;
-
-			memset(buffer, 0, BUFFER_SIZE);
-			num_bytes = recv(client->sock_fd, buffer, BUFFER_SIZE, 0);
-
-			// Do something with data received.
-			printf("connected client %d:\n", client->sock_fd);
-			printf("read %d bytes:\n", num_bytes);
-			printf("%s\n", buffer);
-
-			// Set 2s timeout for client.
-			memset(&timer, 0, sizeof(timer));
-			timer.it_value.tv_sec = 2;
-			timerfd_settime(client->timer_fd, 0, &timer, NULL);
+			assert(client != NULL);
+			handle_client_message(client);
 		}
 
 	}
 	if (events_num == -1) {
-		syserr("server: epoll_wait");
+		syserr("handle_clients: epoll_wait");
 	}
 }
 
-void handle_round(){
-
+void handle_round() {
+	if (game_state(game) == GS_OVER) {
+		game_restart(game);
+		return;
+	}
+	game_tick(game);
 }
 
 int main(int argc, char *argv[]) {
 
-	server_args_t args;
 	int parse_result = parse_server_args(argc, argv, &args);
 	if (parse_result != 0) {
 		fatal("Usage: [-p n] [-s n] [-t n] [-v n] [-w n] [-h n]");
 	}
 
-	init_server(args.server_port);
+	init_server();
 	init_clients();
-	init_round_timer(args.rounds_per_sec);
+	init_round_timer();
+	init_game();
 	init_epoll();
 
 	printf("listening on %d\n", args.server_port);
@@ -296,12 +338,11 @@ int main(int argc, char *argv[]) {
 			handle_new_client();
 		}
 		if (loop_actions & LA_DATA) {
-			handle_data();
+			handle_clients();
 		}
 		if (loop_actions & LA_ROUND) {
 			handle_round();
 		}
-
 
 	}
 

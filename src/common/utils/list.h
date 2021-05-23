@@ -27,4 +27,6 @@ list_node_t *list_next(list_node_t *node);
 
 list_node_t *list_prev(list_node_t *node);
 
+void list_remove_all(list_t *list);
+
 #endif //SIK_SCREEN_WORMS_LIST_H
