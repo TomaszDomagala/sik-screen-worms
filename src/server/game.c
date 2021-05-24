@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include "config.h"
 #include "rand.h"
-#include "utils/stack.h"
 #include "utils/list.h"
 #include "game_board.h"
 #include <assert.h>
@@ -25,13 +24,12 @@ struct game_s {
 	list_t *waiting;
 	list_t *observers;
 
-	stack_t *events;
 	game_board_t *board;
 
 	uint32_t players_alive;
 	uint32_t players_ready;
 
-	int8_t *players_names;
+	int8_t **players_names;
 };
 
 game_t *game_create(size_t width, size_t height) {
@@ -45,7 +43,6 @@ game_t *game_create(size_t width, size_t height) {
 	game->players = list_create(sizeof(player_t));
 	game->waiting = list_create(sizeof(player_t));
 	game->observers = list_create(sizeof(player_t));
-	game->events = stack_create(sizeof(game_event_t));
 	game->board = game_board_create(width, height);
 
 
@@ -53,11 +50,10 @@ game_t *game_create(size_t width, size_t height) {
 	game->players_ready = 0;
 	game->players_names = NULL;
 
-	if (!game->players || !game->waiting || !game->observers || !game->events || !game->board) {
+	if (!game->players || !game->waiting || !game->observers || !game->board) {
 		list_free(game->players);
 		list_free(game->waiting);
 		list_free(game->observers);
-		stack_free(game->events);
 		game_board_free(game->board);
 		free(game);
 		return NULL;
@@ -169,29 +165,30 @@ bool game_set_turn_direction(game_t *game, uint64_t session_id, uint8_t turn_dir
 }
 
 void save_players_names(game_t *game) {
-	game->players_names = malloc(sizeof(int8_t) * 25 * 21); // TODO remove magic numbers.
-	uint8_t *buffer = game->players_names;
+	game->players_names = calloc(list_size(game->players), sizeof(int8_t *));
 
-	for (list_node_t *node = list_head(game->players); node != NULL; node = list_next(node)) {
+	int i = 0;
+	for (list_node_t *node = list_head(game->players); node != NULL; node = list_next(node), ++i) {
 		player_t *player = list_element(node);
-		memcpy(buffer, player->player_name, 21);
-		buffer += 21;
+		game->players_names[i] = player->player_name;
 	}
 }
 
-bool game_tick_waiting(game_t *game) {
+list_t *game_tick_waiting(game_t *game) {
 	assert(game->state == GS_WAITING);
 	if (game->players_ready > 1 && list_size(game->waiting) == game->players_ready) {
 		// If there are at least 2 players and all of them are ready, start the game.
 		game->state = GS_IN_PROGRESS;
 	} else {
-		return false;
+		return NULL;
 	}
 
 	list_t *temp = game->players;
 	game->players = game->waiting;
 	game->waiting = temp;
 	game->players_alive = list_size(game->players);
+
+	list_t *events = list_create(sizeof(game_event_t));
 
 	game_event_t event;
 
@@ -202,7 +199,8 @@ bool game_tick_waiting(game_t *game) {
 	save_players_names(game);
 	event.data.new_game.players_names = game->players_names;
 
-	stack_push(game->events, &event);
+	list_add(events, &event);
+
 
 	uint32_t x, y;
 	uint8_t player_num = 0;
@@ -224,24 +222,25 @@ bool game_tick_waiting(game_t *game) {
 			game->players_alive--;
 			event.type = GE_PLAYER_ELIMINATED;
 			event.data.player_eliminated.player_number = player_num;
-			stack_push(game->events, &event);
+			list_add(events, &event);
 		} else {
 			game_board_set(game->board, x, y);
 			event.type = GE_PIXEL;
 			event.data.pixel.player_number = player_num;
 			event.data.pixel.x = x;
 			event.data.pixel.y = y;
-			stack_push(game->events, &event);
+			list_add(events, &event);
 		}
 	}
 
-	return true;
+	return events;
 }
 
-bool game_tick_in_progress(game_t *game) {
+list_t *game_tick_in_progress(game_t *game) {
 	assert(game->state == GS_IN_PROGRESS);
 
 	game_event_t event;
+	list_t *events = list_create(sizeof(game_event_t));
 
 	uint8_t player_num = 0;
 	for (list_node_t *node = list_head(game->players); node != NULL; node = list_next(node), player_num++) {
@@ -291,18 +290,18 @@ bool game_tick_in_progress(game_t *game) {
 			event.data.pixel.x = new_x;
 			event.data.pixel.y = new_y;
 		}
-		stack_push(game->events, &event);
+		list_add(events, &event);
 	}
 
 	if (game->players_alive <= 1) {
 		event.type = GE_GAME_OVER;
-		stack_push(game->events, &event);
+		list_add(events, &event);
 	}
 
-	return true;
+	return events;
 }
 
-bool game_tick(game_t *game) {
+list_t *game_tick(game_t *game) {
 	switch (game->state) {
 		case GS_WAITING: {
 			return game_tick_waiting(game);
@@ -311,11 +310,11 @@ bool game_tick(game_t *game) {
 			return game_tick_in_progress(game);
 		}
 		case GS_OVER: {
-			return true;
+			return NULL;
 		}
 	}
 	assert(false);
-	return false;
+	return NULL;
 }
 
 bool game_restart(game_t *game) {
@@ -324,10 +323,13 @@ bool game_restart(game_t *game) {
 	game->players_ready = 0;
 	game->players_alive = 0;
 
+	free(game->players_names);
+	game->players_names = NULL;
+
 	for (list_node_t *node = list_head(game->players); node != NULL; node = list_next(node)) {
 		player_t *player = list_element(node);
 		if (!(player->status & PS_DISCONNECTED))
-			list_add(game->observers, player);
+			list_add(game->waiting, player);
 	}
 	list_remove_all(game->players);
 }

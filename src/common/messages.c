@@ -1,7 +1,7 @@
 #include <messages.h>
 #include <string.h>
 #include <assert.h>
-
+#include <stdlib.h>
 
 #if defined(__linux__)
 
@@ -66,13 +66,12 @@ int serialize_game_event_new_game(int8_t *buffer, game_event_t *event) {
 	buffer += sizeof(uint32_t);
 
 	int len;
-	int8_t *names = event->data.new_game.players_names;
+	int8_t **names = event->data.new_game.players_names;
 
 	for (int i = 0; i < event->data.new_game.players_num; ++i) {
-		len = strlen(names) + 1;
-		memcpy(buffer, names, len);
+		len = strlen(names[i]) + 1;
+		memcpy(buffer, names[i], len);
 		buffer += len;
-		names += len;
 	}
 	return (int) (buffer - orig_buff);
 }
@@ -103,48 +102,128 @@ int serialize_game_event_game_over() {
 }
 
 
-int serialize_game_event(int8_t *buffer, uint32_t event_no, game_event_t *event) {
-
+int serialize_game_event(int8_t *buffer, game_event_t *event) {
 	int8_t *data = buffer + 9; // len + event_no + event_type.
-	uint32_t len, be_len, be_event_no, be_crc32;
+	uint32_t event_len, total_len, be_len, be_event_no, be_crc32;
 
 	switch (event->type) {
 		case GE_NEW_GAME:
-			len = serialize_game_event_new_game(data, event);
+			event_len = serialize_game_event_new_game(data, event);
 			break;
 		case GE_PIXEL:
-			len = serialize_game_event_pixel(data, event);
+			event_len = serialize_game_event_pixel(data, event);
 			break;
 		case GE_PLAYER_ELIMINATED:
-			len = serialize_game_event_player_eliminated(data, event);
+			event_len = serialize_game_event_player_eliminated(data, event);
 			break;
 		case GE_GAME_OVER:
-			len = serialize_game_event_game_over();
+			event_len = serialize_game_event_game_over();
 			break;
 	}
 
-	len += 5; // event_no + event_type + event_data.
-	be_len = htobe32(len);
+	event_len += 5; // event_no + event_type + event_data.
+	be_len = htobe32(event_len);
 	memcpy(buffer, &be_len, sizeof(uint32_t));
 	buffer += sizeof(uint32_t);
 
-	be_event_no = htobe32(event_no);
+	be_event_no = htobe32(event->event_no);
 	memcpy(buffer, &be_event_no, sizeof(uint32_t));
 	buffer += sizeof(uint32_t);
 
 	memcpy(buffer, &event->type, sizeof(uint8_t));
-	buffer += -8 + len;
+	buffer += event_len - 4; // Move buffer to crc32 field.
 
 	// TODO crc32
-	be_crc32 = htobe32(0);
+	be_crc32 = htobe32(2137);
 	memcpy(buffer, &be_crc32, sizeof(uint32_t));
-	len += sizeof(uint32_t);
 
-	return len;
+	return event_len + 2 * sizeof(uint32_t); //
 }
 
+int deserialize_game_event_new_game(int8_t *buffer, game_event_t *event, uint32_t data_len) {
+	// TODO add error handling.
+
+	memcpy(&event->data.new_game.max_x, buffer, sizeof(uint32_t));
+	event->data.new_game.max_x = be32toh(event->data.new_game.max_x);
+	buffer += sizeof(uint32_t);
+
+	memcpy(&event->data.new_game.max_y, buffer, sizeof(uint32_t));
+	event->data.new_game.max_y = be32toh(event->data.new_game.max_y);
+	buffer += sizeof(uint32_t);
+
+	int32_t names_len = data_len - 2 * sizeof(uint32_t);
+
+	int8_t **names = calloc(25, sizeof(int8_t *));
+	uint8_t names_num = 0;
+
+	while (names_len > 0) {
+		int len = strlen(buffer) + 1; // Length with \0.
+		names[names_num] = malloc(names_len);
+		memcpy(names[names_num], buffer, len);
+		buffer += len;
+		names_len -= len;
+		names_num++;
+	}
+
+	event->data.new_game.players_num = names_num;
+	event->data.new_game.players_names = names;
+
+	return data_len;
+}
+
+int deserialize_game_event_pixel(int8_t *buffer, game_event_t *event) {
+	memcpy(&event->data.pixel.player_number, buffer, sizeof(uint8_t));
+	buffer += sizeof(uint8_t);
+
+	memcpy(&event->data.pixel.x, buffer, sizeof(uint32_t));
+	event->data.pixel.x = be32toh(event->data.pixel.x);
+	buffer += sizeof(uint32_t);
+
+	memcpy(&event->data.pixel.y, buffer, sizeof(uint32_t));
+	event->data.pixel.y = be32toh(event->data.pixel.y);
+
+	return 9;
+}
+
+int deserialize_game_event_player_eliminated(int8_t *buffer, game_event_t *event) {
+	memcpy(&event->data.player_eliminated.player_number, buffer, sizeof(uint8_t));
+	return 1;
+}
+
+int deserialize_game_event_game_over(int8_t *buffer, game_event_t *event) {
+	// TODO maybe remove this func.
+	return 0;
+}
 
 int deserialize_game_event(int8_t *buffer, game_event_t *event) {
-	uint32_t len, event_no;
+	uint32_t event_len;
 
+	// TODO crc32
+	memcpy(&event_len, buffer, sizeof(uint32_t));
+	event_len = be32toh(event_len);
+	buffer += sizeof(uint32_t);
+
+	memcpy(&event->event_no, buffer, sizeof(uint32_t));
+	event->event_no = be32toh(event->event_no);
+	buffer += sizeof(uint32_t);
+
+	memcpy(&event->type, buffer, sizeof(uint8_t));
+	buffer += sizeof(uint8_t);
+
+	switch (event->type) {
+		case GE_NEW_GAME:
+			deserialize_game_event_new_game(buffer, event, event_len - 5);
+			break;
+		case GE_PIXEL:
+			deserialize_game_event_pixel(buffer, event);
+			break;
+		case GE_PLAYER_ELIMINATED:
+			deserialize_game_event_player_eliminated(buffer, event);
+			break;
+		case GE_GAME_OVER:
+			deserialize_game_event_game_over(buffer, event);
+			break;
+	}
+	// TODO crc32.
+	return event_len + 2 * sizeof(uint32_t);
 }

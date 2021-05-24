@@ -14,9 +14,10 @@
 #include "clients.h"
 #include "messages.h"
 #include "game.h"
+#include "events_storage.h"
 
 #define MAX_EVENTS 32
-#define BUFFER_SIZE 512
+#define BUFFER_SIZE 550
 
 // loop actions
 #define LA_NEW_CLIENT 0x1
@@ -25,9 +26,10 @@
 #define LA_ROUND 0x8
 
 int8_t buffer[BUFFER_SIZE];
-struct epoll_event ev, events[MAX_EVENTS];
+struct epoll_event ev, epoll_events[MAX_EVENTS];
 
 clients_collection_t *clients = NULL;
+event_storage_t *event_storage = NULL;
 
 int server_sock_fd, round_fd;
 int main_epoll_fd, data_epoll_fd, timeout_epoll_fd;
@@ -84,7 +86,13 @@ void init_server() {
 
 void init_clients() {
 	if ((clients = clients_create()) == NULL) {
-		fatal("server: clients");
+		fatal("server: clients_create");
+	}
+}
+
+void init_event_storage() {
+	if ((event_storage = event_storage_create()) == NULL) {
+		fatal("server: event_storage_create");
 	}
 }
 
@@ -157,9 +165,9 @@ void handle_client_request(client_t *client, mess_client_server_t *m_client) {
 void handle_timeouts() {
 	int events_num;
 
-	while ((events_num = epoll_wait(timeout_epoll_fd, events, MAX_EVENTS, 0)) > 0) {
+	while ((events_num = epoll_wait(timeout_epoll_fd, epoll_events, MAX_EVENTS, 0)) > 0) {
 		for (int i = 0; i < events_num; ++i) {
-			client_t *client = events[i].data.ptr;
+			client_t *client = epoll_events[i].data.ptr;
 
 			printf("disconnecting client %d\n", client->sock_fd);
 			if (epoll_ctl(data_epoll_fd, EPOLL_CTL_DEL, client->sock_fd, NULL) == -1)
@@ -246,6 +254,34 @@ void handle_new_client() {
 	client_timer_restart(new_client);
 }
 
+void send_events(client_t *client, size_t event_no) {
+	// TODO do this in different thread (probably).
+
+	ssize_t last = event_storage_last(event_storage);
+
+	if (last == -1 || event_no > last)
+		return;
+
+	serialized_event_t *event = event_storage_get(event_storage, event_no);
+	int8_t *message_start = event->data;
+	size_t message_size = event->len;
+
+	for (size_t i = event_no + 1; i <= last; ++i) {
+		event = event_storage_get(event_storage, i);
+
+		if (message_size + event->len > BUFFER_SIZE) {
+			send(client->sock_fd, message_start, message_size, 0);
+			message_size = 0;
+			message_start = event->data;
+		}
+		message_size += event->len;
+	}
+
+	if (message_size > 0) {
+		send(client->sock_fd, message_start, message_size, 0);
+	}
+}
+
 void handle_client_message(client_t *client) {
 	client_timer_restart(client);
 
@@ -268,19 +304,18 @@ void handle_client_message(client_t *client) {
 	}
 
 	game_set_turn_direction(game, client->session_id, m_client.turn_direction);
-
+	send_events(client, m_client.next_expected_event_no);
 }
 
 void handle_clients() {
 	int events_num;
 
-	while ((events_num = epoll_wait(data_epoll_fd, events, MAX_EVENTS, 0)) > 0) {
+	while ((events_num = epoll_wait(data_epoll_fd, epoll_events, MAX_EVENTS, 0)) > 0) {
 		for (int i = 0; i < events_num; ++i) {
-			client_t *client = events[i].data.ptr;
+			client_t *client = epoll_events[i].data.ptr;
 			assert(client != NULL);
 			handle_client_message(client);
 		}
-
 	}
 	if (events_num == -1) {
 		syserr("handle_clients: epoll_wait");
@@ -292,7 +327,16 @@ void handle_round() {
 		game_restart(game);
 		return;
 	}
-	game_tick(game);
+	list_t *game_events = game_tick(game);
+	if (game_events == NULL)
+		return;
+
+	for (list_node_t *node = list_head(game_events); node != NULL; node = list_next(node)) {
+		game_event_t *g_event = list_element(node);
+		event_storage_push(event_storage, g_event);
+	}
+	list_remove_all(game_events);
+	list_free(game_events);
 }
 
 int main(int argc, char *argv[]) {
@@ -304,6 +348,7 @@ int main(int argc, char *argv[]) {
 
 	init_server();
 	init_clients();
+	init_event_storage();
 	init_round_timer();
 	init_game();
 	init_epoll();
@@ -314,17 +359,17 @@ int main(int argc, char *argv[]) {
 
 	for (;;) {
 		// Wait for new clients, new data from clients or clients timeouts.
-		action_types = epoll_wait(main_epoll_fd, events, MAX_EVENTS, -1);
+		action_types = epoll_wait(main_epoll_fd, epoll_events, MAX_EVENTS, -1);
 		loop_actions = 0;
 
 		for (i = 0; i < action_types; ++i) {
-			if (events[i].data.fd == server_sock_fd) {
+			if (epoll_events[i].data.fd == server_sock_fd) {
 				loop_actions |= LA_NEW_CLIENT;
-			} else if (events[i].data.fd == data_epoll_fd) {
+			} else if (epoll_events[i].data.fd == data_epoll_fd) {
 				loop_actions |= LA_DATA;
-			} else if (events[i].data.fd == timeout_epoll_fd) {
+			} else if (epoll_events[i].data.fd == timeout_epoll_fd) {
 				loop_actions |= LA_TIMEOUT;
-			} else if (events[i].data.fd == round_fd) {
+			} else if (epoll_events[i].data.fd == round_fd) {
 				loop_actions |= LA_ROUND;
 			} else {
 				assert(false);
@@ -345,7 +390,6 @@ int main(int argc, char *argv[]) {
 		}
 
 	}
-
 
 	return 0;
 }

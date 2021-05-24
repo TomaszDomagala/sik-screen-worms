@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "utils/list.h"
 #include "messages.h"
 
 // Player status flags.
@@ -44,7 +45,7 @@ bool game_set_turn_direction(game_t *game, uint64_t session_id, uint8_t turn_dir
 
 bool game_remove_player(game_t *game, uint64_t session_id);
 
-bool game_tick(game_t *game);
+list_t* game_tick(game_t *game);
 
 bool game_restart(game_t *game);
 
