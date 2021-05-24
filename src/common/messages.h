@@ -26,6 +26,8 @@ typedef struct {
 typedef struct {
 	uint32_t max_x;
 	uint32_t max_y;
+	uint8_t players_num;
+	int8_t *players_names;
 } ge_data_new_game_t;
 
 typedef struct {
@@ -56,8 +58,8 @@ int serialize_client_message(mess_binary_t *m_binary, mess_client_server_t *m_cl
 
 int deserialize_client_message(mess_binary_t *m_binary, mess_client_server_t *m_client);
 
-int serialize_game_event(mess_binary_t *m_binary, game_event_t *event, int8_t *names);
+int serialize_game_event(int8_t *buffer, uint32_t event_no, game_event_t *event);
 
-int deserialize_game_event(mess_binary_t *m_binary, game_event_t *event, int8_t *names);
+int deserialize_game_event(int8_t *buffer, game_event_t *event);
 
 #endif //SIK_SCREEN_WORMS_MESSAGES_H

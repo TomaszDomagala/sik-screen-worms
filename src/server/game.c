@@ -15,7 +15,6 @@
 #define MAX_PLAYERS_NUM SERVER_MAX_CAPACITY
 
 
-
 struct game_s {
 	uint8_t state;
 	uint32_t game_id;
@@ -31,6 +30,8 @@ struct game_s {
 
 	uint32_t players_alive;
 	uint32_t players_ready;
+
+	int8_t *players_names;
 };
 
 game_t *game_create(size_t width, size_t height) {
@@ -50,6 +51,7 @@ game_t *game_create(size_t width, size_t height) {
 
 	game->players_alive = 0;
 	game->players_ready = 0;
+	game->players_names = NULL;
 
 	if (!game->players || !game->waiting || !game->observers || !game->events || !game->board) {
 		list_free(game->players);
@@ -166,10 +168,20 @@ bool game_set_turn_direction(game_t *game, uint64_t session_id, uint8_t turn_dir
 	}
 }
 
+void save_players_names(game_t *game) {
+	game->players_names = malloc(sizeof(int8_t) * 25 * 21); // TODO remove magic numbers.
+	uint8_t *buffer = game->players_names;
+
+	for (list_node_t *node = list_head(game->players); node != NULL; node = list_next(node)) {
+		player_t *player = list_element(node);
+		memcpy(buffer, player->player_name, 21);
+		buffer += 21;
+	}
+}
 
 bool game_tick_waiting(game_t *game) {
 	assert(game->state == GS_WAITING);
-	if (game->players_ready > 1 && list_size(game->observers) == game->players_ready) {
+	if (game->players_ready > 1 && list_size(game->waiting) == game->players_ready) {
 		// If there are at least 2 players and all of them are ready, start the game.
 		game->state = GS_IN_PROGRESS;
 	} else {
@@ -177,8 +189,8 @@ bool game_tick_waiting(game_t *game) {
 	}
 
 	list_t *temp = game->players;
-	game->players = game->observers;
-	game->observers = temp;
+	game->players = game->waiting;
+	game->waiting = temp;
 	game->players_alive = list_size(game->players);
 
 	game_event_t event;
@@ -186,6 +198,10 @@ bool game_tick_waiting(game_t *game) {
 	event.type = GE_NEW_GAME;
 	event.data.new_game.max_x = game->width;
 	event.data.new_game.max_y = game->height;
+	event.data.new_game.players_num = list_size(game->players);
+	save_players_names(game);
+	event.data.new_game.players_names = game->players_names;
+
 	stack_push(game->events, &event);
 
 	uint32_t x, y;
