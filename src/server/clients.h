@@ -12,12 +12,12 @@ typedef struct clients_collection_s clients_collection_t;
 #define CS_PLAYING 2
 
 typedef struct {
-    uint8_t status;
-    int32_t sock_fd;
-    int32_t timer_fd;
+	uint8_t status;
+	int32_t sock_fd;
+	int32_t timer_fd;
 
-    uint64_t session_id;
-    int8_t player_name[21];
+	uint64_t session_id;
+	int8_t player_name[21];
 } client_t;
 
 /**
@@ -39,7 +39,7 @@ void clients_free(clients_collection_t *clients);
  * @param sock_fd - client's socket file descriptor.
  * @return pointer to the created client or NULL if client could not be created.
  */
-client_t *clients_new_client(clients_collection_t *clients, uint64_t session_id, int32_t sock_fd);
+client_t *clients_new_client(clients_collection_t *clients, uint64_t session_id, int32_t sock_fd, int8_t *name);
 
 /**
  * Delete client with given sock_fd and close

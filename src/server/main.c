@@ -14,6 +14,7 @@
 #include "clients.h"
 #include "messages.h"
 #include "game.h"
+#include <errno.h>
 #include "events_storage.h"
 
 #define MAX_EVENTS 32
@@ -99,8 +100,13 @@ void init_event_storage() {
 void init_round_timer() {
 	struct itimerspec spec;
 	memset(&spec, 0, sizeof(spec));
+
 	spec.it_value.tv_nsec = 1;
-	spec.it_interval.tv_nsec = 1000000000 / args.rounds_per_sec;
+	if (args.rounds_per_sec == 1) {
+		spec.it_interval.tv_sec = 1;
+	} else {
+		spec.it_interval.tv_nsec = (1000000000 / args.rounds_per_sec);
+	}
 
 	round_fd = timerfd_create(CLOCK_BOOTTIME, 0);
 
@@ -146,11 +152,6 @@ void init_game() {
 	game = game_create(args.board_width, args.board_height);
 }
 
-void client_timer_stop(client_t *client) {
-	memset(&timer, 0, sizeof(timer));
-	timer.it_value.tv_sec = 0;
-	timerfd_settime(client->timer_fd, 0, &timer, NULL);
-}
 
 void client_timer_restart(client_t *client) {
 	memset(&timer, 0, sizeof(timer));
@@ -159,7 +160,7 @@ void client_timer_restart(client_t *client) {
 }
 
 void handle_client_request(client_t *client, mess_client_server_t *m_client) {
-	printf("client s_id=%lu requested neen=%d\n", client->session_id, m_client->next_expected_event_no);
+//	printf("client s_id=%lu requested neen=%d\n", client->session_id, m_client->next_expected_event_no);
 }
 
 void handle_timeouts() {
@@ -225,7 +226,7 @@ void handle_new_client() {
 	}
 
 
-	client_t *new_client = clients_new_client(clients, m_client.session_id, new_client_sock);
+	client_t *new_client = clients_new_client(clients, m_client.session_id, new_client_sock, m_client.player_name);
 	if (new_client == NULL) {
 		close(new_client_sock);
 		perror("handle_new_client: cannot create new client\n");
@@ -286,7 +287,14 @@ void handle_client_message(client_t *client) {
 	client_timer_restart(client);
 
 	memset(buffer, 0, BUFFER_SIZE);
-	int num_bytes = recv(client->sock_fd, buffer, BUFFER_SIZE, 0);
+	int num_bytes, r;
+	while ((r = recv(client->sock_fd, buffer, BUFFER_SIZE, MSG_DONTWAIT)) > 0) {
+		num_bytes = r;
+	}
+	if (r == -1 && errno != EWOULDBLOCK && errno != EAGAIN) {
+		perror("handle_client_message: recv");
+		return;
+	}
 
 	mess_binary_t m_binary;
 	m_binary.size = num_bytes;
@@ -304,7 +312,7 @@ void handle_client_message(client_t *client) {
 	}
 
 	game_set_turn_direction(game, client->session_id, m_client.turn_direction);
-	send_events(client, m_client.next_expected_event_no);
+	handle_client_request(client, &m_client);
 }
 
 void handle_clients() {
@@ -315,6 +323,7 @@ void handle_clients() {
 			client_t *client = epoll_events[i].data.ptr;
 			assert(client != NULL);
 			handle_client_message(client);
+//			printf("handling client %lu\n",client->session_id); // TODO remove.
 		}
 	}
 	if (events_num == -1) {
@@ -323,14 +332,23 @@ void handle_clients() {
 }
 
 void handle_round() {
+	uint64_t rounds;
+	if (read(round_fd, &rounds, sizeof(uint64_t)) == -1)
+		syserr("handle_round: read");
+	if (rounds > 1)
+		fprintf(stderr, "server is lagging: %lu rounds skipped\n", rounds - 1);
+
+//	printf("handle_round: last event %zd\n", event_storage_last(event_storage)); // TODO remove
+
 	if (game_state(game) == GS_OVER) {
+		printf("handle_round: restarting game\n");
 		game_restart(game);
 		return;
 	}
 	list_t *game_events = game_tick(game);
 	if (game_events == NULL)
 		return;
-
+	printf("new events: %zu\n", list_size(game_events));
 	for (list_node_t *node = list_head(game_events); node != NULL; node = list_next(node)) {
 		game_event_t *g_event = list_element(node);
 		event_storage_push(event_storage, g_event);

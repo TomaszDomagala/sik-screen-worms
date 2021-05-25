@@ -5,13 +5,16 @@
 #include <sys/timerfd.h>
 #include <unistd.h>
 #include "config.h"
+#include "utils/list.h"
+#include "err.h"
+#include <string.h>
 
 
-#define MAX_CLIENTS_NUM SERVER_MAX_CAPACITY
+#define MAX_PLAYERS_NUM 25
 
 struct clients_collection_s {
-	client_t arr[MAX_CLIENTS_NUM];
-	uint32_t num;
+	list_t *clients_list;
+	int players_number;
 };
 
 clients_collection_t *clients_create() {
@@ -19,54 +22,61 @@ clients_collection_t *clients_create() {
 	if (clients == NULL) {
 		return NULL;
 	}
-	for (int i = 0; i < MAX_CLIENTS_NUM; ++i) {
-		clients->arr[i].sock_fd = -1;
+	clients->clients_list = list_create(sizeof(client_t));
+	clients->players_number = 0;
+	if (clients->clients_list == NULL) {
+		free(clients);
+		return NULL;
 	}
-	clients->num = 0;
 	return clients;
 }
 
-client_t *clients_new_client(clients_collection_t *clients, uint64_t session_id, int32_t sock_fd) {
+list_node_t *find_client_by_sock_fd(clients_collection_t *clients, int32_t sock_fd) {
+	for (list_node_t *node = list_head(clients->clients_list); node != NULL; node = list_next(node)) {
+		client_t *client = list_element(node);
+		if (client->sock_fd == sock_fd)
+			return node;
+	}
+	return NULL;
+}
+
+client_t *clients_new_client(clients_collection_t *clients, uint64_t session_id, int32_t sock_fd, int8_t *name) {
 	assert(clients != NULL);
-	if (clients->num == MAX_CLIENTS_NUM) {
+
+	if (name[0] != 0 && clients->players_number == MAX_PLAYERS_NUM)
+		return NULL; // Too many players.
+
+	client_t client;
+	client.session_id = session_id;
+	client.sock_fd = sock_fd;
+	if ((client.timer_fd = timerfd_create(CLOCK_BOOTTIME, 0)) == -1) {
+		syserr("clients_new_client: timerfd_create");
+	}
+	strcpy(client.player_name, name);
+
+	list_node_t *node = list_add(clients->clients_list, &client);
+	if (node == NULL)
 		return NULL;
-	}
-	int i;
-	for (i = 0; i < MAX_CLIENTS_NUM; ++i) {
-		if (clients->arr[i].sock_fd == -1) {
-			clients->arr[i].session_id = session_id;
-			clients->arr[i].sock_fd = sock_fd;
-			clients->arr[i].timer_fd = timerfd_create(CLOCK_BOOTTIME, 0);
-			break;
-		}
-	}
-	assert(i < MAX_CLIENTS_NUM);
-	clients->num++;
-	return &clients->arr[i];
+	if (name[0] != 0)
+		clients->players_number++;
+
+	return list_element(node);
 }
 
 void clients_delete_client(clients_collection_t *clients, int32_t sock_fd) {
 	assert(clients != NULL);
 
-	for (int i = 0; i < MAX_CLIENTS_NUM; ++i) {
-		client_t *client = &clients->arr[i];
-		if (client->sock_fd == sock_fd) {
-			close(client->sock_fd);
-			close(client->timer_fd);
+	list_node_t *node = find_client_by_sock_fd(clients, sock_fd);
+	assert(node != NULL);
 
-			client->sock_fd = -1;
-			return;
-		}
-	}
-	assert(0);
+	list_remove(clients->clients_list, node);
 }
 
 client_t *clients_find_client_by_session_id(clients_collection_t *clients, uint64_t session_id) {
-	for (int i = 0; i < MAX_CLIENTS_NUM; ++i) {
-		client_t *client = &clients->arr[i];
-		if (client->sock_fd != -1 && client->session_id == session_id) {
+	for (list_node_t *node = list_head(clients->clients_list); node != NULL; node = list_next(node)) {
+		client_t *client = list_element(node);
+		if (client->session_id == session_id)
 			return client;
-		}
 	}
 	return NULL;
 }

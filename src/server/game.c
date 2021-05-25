@@ -10,6 +10,7 @@
 #include "string.h"
 #include "messages.h"
 #include <math.h>
+#include <stdio.h>
 
 #define MAX_PLAYERS_NUM SERVER_MAX_CAPACITY
 
@@ -19,6 +20,7 @@ struct game_s {
 	uint32_t game_id;
 	size_t width;
 	size_t height;
+	uint32_t next_event_no;
 
 	list_t *players;
 	list_t *waiting;
@@ -45,6 +47,9 @@ game_t *game_create(size_t width, size_t height) {
 	game->observers = list_create(sizeof(player_t));
 	game->board = game_board_create(width, height);
 
+	game->width = width;
+	game->height = height;
+	game->next_event_no = 0;
 
 	game->players_alive = 0;
 	game->players_ready = 0;
@@ -105,6 +110,7 @@ bool add_player(game_t *game, uint64_t session_id, int8_t *player_name) {
 }
 
 bool game_add_player(game_t *game, uint64_t session_id, int8_t *player_name) {
+	printf("game_add_player: name=%s\n", player_name);
 	if (player_name[0] == 0) {
 		return add_observer(game, session_id, player_name);
 	}
@@ -135,10 +141,11 @@ bool game_set_turn_direction(game_t *game, uint64_t session_id, uint8_t turn_dir
 
 	switch (game->state) {
 		case GS_WAITING: {
-			player_node = find_player(game->observers, session_id);
+			player_node = find_player(game->waiting, session_id);
 			if (player_node == NULL)
 				return false;
 			player = list_element(player_node);
+
 			if (player->turn_direction == 0 && turn_direction > 0) {
 				game->players_ready++;
 			} else if (player->turn_direction > 0 && turn_direction == 0) {
@@ -182,6 +189,7 @@ list_t *game_tick_waiting(game_t *game) {
 	} else {
 		return NULL;
 	}
+	printf("starting game\n");
 
 	list_t *temp = game->players;
 	game->players = game->waiting;
@@ -193,6 +201,7 @@ list_t *game_tick_waiting(game_t *game) {
 	game_event_t event;
 
 	event.type = GE_NEW_GAME;
+	event.event_no = game->next_event_no++;
 	event.data.new_game.max_x = game->width;
 	event.data.new_game.max_y = game->height;
 	event.data.new_game.players_num = list_size(game->players);
@@ -222,15 +231,16 @@ list_t *game_tick_waiting(game_t *game) {
 			game->players_alive--;
 			event.type = GE_PLAYER_ELIMINATED;
 			event.data.player_eliminated.player_number = player_num;
-			list_add(events, &event);
 		} else {
 			game_board_set(game->board, x, y);
 			event.type = GE_PIXEL;
 			event.data.pixel.player_number = player_num;
 			event.data.pixel.x = x;
 			event.data.pixel.y = y;
-			list_add(events, &event);
 		}
+		event.event_no = game->next_event_no++;
+		list_add(events, &event);
+
 	}
 
 	return events;
@@ -290,11 +300,13 @@ list_t *game_tick_in_progress(game_t *game) {
 			event.data.pixel.x = new_x;
 			event.data.pixel.y = new_y;
 		}
+		event.event_no = game->next_event_no++;
 		list_add(events, &event);
 	}
 
 	if (game->players_alive <= 1) {
 		event.type = GE_GAME_OVER;
+		event.event_no = game->next_event_no++;
 		list_add(events, &event);
 	}
 
@@ -302,6 +314,12 @@ list_t *game_tick_in_progress(game_t *game) {
 }
 
 list_t *game_tick(game_t *game) {
+//	printf("game_tick: pr=%d p=%zu w=%zu o=%zu\n",
+//		   game->players_ready,
+//		   list_size(game->players),
+//		   list_size(game->waiting),
+//		   list_size(game->observers)); // TODO remove.
+
 	switch (game->state) {
 		case GS_WAITING: {
 			return game_tick_waiting(game);

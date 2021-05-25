@@ -134,7 +134,7 @@ int serialize_game_event(int8_t *buffer, game_event_t *event) {
 	buffer += event_len - 4; // Move buffer to crc32 field.
 
 	// TODO crc32
-	be_crc32 = htobe32(2137);
+	be_crc32 = htobe32(7);
 	memcpy(buffer, &be_crc32, sizeof(uint32_t));
 
 	return event_len + 2 * sizeof(uint32_t); //
