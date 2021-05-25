@@ -7,7 +7,17 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 #include "err.h"
+#include "gui_messages.h"
+
+#define BUFFER_SIZE 1024
+
+struct gui_client_s {
+	int sock_fd;
+	int8_t buffer[BUFFER_SIZE];
+
+};
 
 void *get_in_addr(struct sockaddr *addr) {
 	switch (addr->sa_family) {
@@ -21,7 +31,11 @@ void *get_in_addr(struct sockaddr *addr) {
 }
 
 
-int gui_client_connect(char *address, char *port, gui_client_t *client) {
+gui_client_t *gui_client_connect(char *address, char *port) {
+	gui_client_t *client = malloc(sizeof(gui_client_t));
+	if (client == NULL)
+		return NULL;
+
 	struct addrinfo hints, *gui_info, *info;
 	int status, sock_fd;
 
@@ -57,11 +71,43 @@ int gui_client_connect(char *address, char *port, gui_client_t *client) {
 	freeaddrinfo(gui_info);
 
 	client->sock_fd = sock_fd;
+	return client;
+}
+
+void gui_client_disconnect(gui_client_t *client) {
+	close(client->sock_fd);
+}
+
+int gui_client_socket(gui_client_t *client) {
+	return client->sock_fd;
+}
+
+int gui_client_send_event(gui_client_t *client, game_event_t *event, int8_t **names) {
+	int size = serialize_client_gui_message(client->buffer, event, names);
+	int total_sent = 0, sent;
+
+	while (total_sent < size) {
+		sent = send(client->sock_fd, client->buffer + total_sent, size - total_sent, 0);
+		if (sent == -1)
+			break;
+		total_sent += sent;
+	}
+	return sent == -1 ? -1 : 0;
+}
+
+// TODO handle errors.
+// TODO non blocking sockets
+int gui_client_recv_event(gui_client_t *client, gui_message_t *gui_message) {
+	int total_rec = 0, space_left = BUFFER_SIZE, rec;
+	memset(client->buffer, 0, BUFFER_SIZE);
+
+	while ((rec = recv(client->sock_fd, client->buffer + total_rec, space_left, 0)) > 0) {
+		total_rec += rec;
+		space_left -= rec;
+	}
+	printf("gui_client_recv_event buffer:\n%s\n", client->buffer);
+
 	return 0;
 }
 
-int gui_client_disconnect(gui_client_t *client) {
-	close(client->sock_fd);
-	return 0;
-}
 

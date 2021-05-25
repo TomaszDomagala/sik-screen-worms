@@ -1,4 +1,4 @@
-add_library(sik-client client_args.c gui_client.c)
+add_library(sik-client client_args.c gui_client.c game_client.c gui_messages.c)
 target_include_directories(sik-client PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(sik-client sik-common)
 

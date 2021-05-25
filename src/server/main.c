@@ -54,7 +54,7 @@ void init_server() {
 	sprintf(port, "%d", args.server_port);
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC; // TODO change to IPv6.
+	hints.ai_family = AF_INET6;
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE;
 
@@ -109,11 +109,11 @@ void init_round_timer() {
 
 void init_epoll() {
 	if ((main_epoll_fd = epoll_create1(0)) == -1)
-		syserr("init_epoll: epoll");
+		syserr("init_epoll: epoll_create1");
 	if ((data_epoll_fd = epoll_create1(0)) == -1)
-		syserr("init_epoll: epoll");
+		syserr("init_epoll: epoll_create1");
 	if ((timeout_epoll_fd = epoll_create1(0)) == -1)
-		syserr("init_epoll: epoll");
+		syserr("init_epoll: epoll_create1");
 
 	// Wait for game round tick.
 	ev.events = EPOLLIN;
