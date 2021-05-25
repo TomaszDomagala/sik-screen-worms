@@ -2,6 +2,8 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <stdio.h>
@@ -9,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "err.h"
+#include <errno.h>
 #include "gui_messages.h"
 
 #define BUFFER_SIZE 1024
@@ -37,7 +40,7 @@ gui_client_t *gui_client_connect(char *address, char *port) {
 		return NULL;
 
 	struct addrinfo hints, *gui_info, *info;
-	int status, sock_fd;
+	int status, sock_fd, tcp_no_delay_on = 1;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -53,6 +56,10 @@ gui_client_t *gui_client_connect(char *address, char *port) {
 			continue;
 		}
 		// TODO add TCP_NODELAY option.
+		if (setsockopt(sock_fd, IPPROTO_TCP, TCP_NODELAY, &tcp_no_delay_on, sizeof(tcp_no_delay_on)) == -1) {
+			perror("gui client: setsockopt");
+			continue;
+		}
 		if (connect(sock_fd, info->ai_addr, info->ai_addrlen) == -1) {
 			perror("gui client: connect");
 			close(sock_fd);
@@ -101,9 +108,13 @@ int gui_client_recv_event(gui_client_t *client, gui_message_t *gui_message) {
 	int total_rec = 0, space_left = BUFFER_SIZE, rec;
 	memset(client->buffer, 0, BUFFER_SIZE);
 
-	while ((rec = recv(client->sock_fd, client->buffer + total_rec, space_left, 0)) > 0) {
+	while ((rec = recv(client->sock_fd, client->buffer + total_rec, space_left, MSG_DONTWAIT)) > 0) {
+		printf("rec %d\n", rec);
 		total_rec += rec;
 		space_left -= rec;
+	}
+	if (rec == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+		printf("would block\n");
 	}
 	printf("gui_client_recv_event buffer:\n%s\n", client->buffer);
 

@@ -92,10 +92,18 @@ void init_epoll() {
 }
 
 void handle_timer() {
-	printf("timer\n");
+	uint64_t ticks;
+	if (read(timer_fd, &ticks, sizeof(ticks)) == -1)
+		syserr("handle_timer: read");
+	if (ticks > 1)
+		fprintf(stderr, "client is lagging: %lu ticks skipped\n", ticks - 1);
+//	printf("tick\n");
+
+//	printf("timer\n");
 }
 
 void handle_gui_message() {
+	printf("gui_mess\n");
 	gui_message_t message;
 	gui_client_recv_event(gui_client, &message);
 }
@@ -113,16 +121,33 @@ int main(int argc, char *argv[]) {
 	init_timer();
 	init_epoll();
 
+	// MOCK
+	game_event_t ge;
+	ge.type = GE_NEW_GAME;
+	ge.event_no = 0;
+	ge.data.new_game.max_x = 640;
+	ge.data.new_game.max_y = 480;
+	ge.data.new_game.players_num = 3;
+
+	int8_t *names[3];
+	names[0] = "adam";
+	names[1] = "eve";
+	names[2] = "cain";
+
+	sleep(1);
+	gui_client_send_event(gui_client, &ge, names);
+
 	int actions;
 	for (;;) {
 		actions = epoll_wait(epoll_fd, epoll_events, MAX_EVENTS, -1);
-
 		for (int i = 0; i < actions; ++i) {
+
 			int event_fd = epoll_events[i].data.fd;
 
 			if (event_fd == timer_fd) {
 				handle_timer();
 			} else if (event_fd == gui_sock_fd) {
+				// TODO add disconnect handler.
 				handle_gui_message();
 			} else if (event_fd == game_sock_fd) {
 				handle_server_message();
