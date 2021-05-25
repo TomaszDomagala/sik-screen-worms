@@ -22,6 +22,7 @@ struct gui_client_s {
 
 };
 
+// TODO export this function to commons
 void *get_in_addr(struct sockaddr *addr) {
 	switch (addr->sa_family) {
 		case AF_INET:
@@ -47,21 +48,21 @@ gui_client_t *gui_client_connect(char *address, char *port) {
 	hints.ai_socktype = SOCK_STREAM;
 
 	if ((status = getaddrinfo(address, port, &hints, &gui_info)) != 0) {
-		syserr("gui client: getaddrinfo error: %s\n", gai_strerror(status));
+		syserr("gui_client_connect: getaddrinfo error: %s\n", gai_strerror(status));
 	}
 
 	for (info = gui_info; info != NULL; info = info->ai_next) {
 		if ((sock_fd = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-			perror("gui client: socket");
+			perror("gui_client_connect: socket");
 			continue;
 		}
 		// TODO add TCP_NODELAY option.
 		if (setsockopt(sock_fd, IPPROTO_TCP, TCP_NODELAY, &tcp_no_delay_on, sizeof(tcp_no_delay_on)) == -1) {
-			perror("gui client: setsockopt");
+			perror("gui_client_connect: setsockopt");
 			continue;
 		}
 		if (connect(sock_fd, info->ai_addr, info->ai_addrlen) == -1) {
-			perror("gui client: connect");
+			perror("gui_client_connect: connect");
 			close(sock_fd);
 			continue;
 		}

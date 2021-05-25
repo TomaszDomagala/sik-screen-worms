@@ -148,6 +148,9 @@ int main(int argc, char *argv[]) {
 				handle_timer();
 			} else if (event_fd == gui_sock_fd) {
 				// TODO add disconnect handler.
+				if (epoll_events[i].events & EPOLLHUP) {
+					fatal("connection with gui lost");
+				}
 				handle_gui_message();
 			} else if (event_fd == game_sock_fd) {
 				handle_server_message();
