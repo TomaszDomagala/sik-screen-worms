@@ -13,10 +13,6 @@
 #define PS_DEAD 0x4
 #define PS_DISCONNECTED 0x8
 
-// Game states.
-#define GS_WAITING 0
-#define GS_IN_PROGRESS 1
-#define GS_OVER 2
 
 #define PD_FORWARD 0
 #define PD_RIGHT 1
@@ -37,7 +33,7 @@ typedef struct {
 
 game_t *game_create(size_t width, size_t height);
 
-uint8_t game_state(game_t *game);
+bool game_in_progress(game_t *game);
 
 bool game_add_player(game_t *game, uint64_t session_id, int8_t *player_name);
 
@@ -45,15 +41,11 @@ bool game_set_turn_direction(game_t *game, uint64_t session_id, uint8_t turn_dir
 
 bool game_remove_player(game_t *game, uint64_t session_id);
 
-list_t* game_tick(game_t *game);
+list_t *game_tick(game_t *game);
 
 bool game_restart(game_t *game);
 
-size_t game_events_num(game_t *game);
-
-game_event_t *game_events_get(game_t *game, size_t index);
-
-void *game_write_names(game_t *game, int8_t *buffer);
+uint32_t game_get_id(game_t *game);
 
 
 #endif //SIK_SCREEN_WORMS_GAME_H

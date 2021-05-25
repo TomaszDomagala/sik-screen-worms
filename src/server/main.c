@@ -17,8 +17,24 @@
 #include <errno.h>
 #include "events_storage.h"
 
-#define MAX_EVENTS 32
-#define BUFFER_SIZE 550
+// TODO wywal to osobnego pliku .h + sending
+#if defined(__linux__)
+
+#  include <endian.h>
+
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
+#  include <sys/endian.h>
+#elif defined(__OpenBSD__)
+#  include <sys/types.h>
+#  define be16toh(x) betoh16(x)
+#  define be32toh(x) betoh32(x)
+#  define be64toh(x) betoh64(x)
+#endif
+
+
+#define MAX_EVENTS 4
+#define BUFFER_SIZE 1024
+#define MAX_UDP_SIZE 550
 
 // loop actions
 #define LA_NEW_CLIENT 0x1
@@ -159,8 +175,47 @@ void client_timer_restart(client_t *client) {
 	timerfd_settime(client->timer_fd, 0, &timer, NULL);
 }
 
+void send_events(client_t *client, size_t event_no) {
+	ssize_t last = event_storage_last(event_storage);
+
+	if (last == -1 || event_no > last)
+		return;
+
+	uint32_t be_game_id = htobe32(game_get_id(game));
+	memcpy(buffer, &be_game_id, sizeof(be_game_id));
+
+	size_t data_size = sizeof(uint32_t);
+	serialized_event_t *event;
+
+	event = event_storage_get(event_storage, event_no);
+	int8_t *data_start = event->data;
+	data_size += event->len;
+
+	for (size_t i = event_no + 1; i <= last; ++i) {
+		event = event_storage_get(event_storage, i);
+
+		if (data_size + event->len > MAX_UDP_SIZE) {
+			// Copy data to the buffer and send.
+			memcpy(buffer + sizeof(uint32_t), data_start, data_size - sizeof(uint32_t));
+			if (send(client->sock_fd, buffer, data_size, MSG_DONTWAIT) != data_size) {
+				// Would block, error or partial write. In every case wait for next client request.
+				return;
+			}
+			data_start = event->data;
+			data_size = sizeof(uint32_t);
+		}
+		data_size += event->len;
+	}
+
+	if (data_size > sizeof(uint32_t)) {
+		// If something is in the buffer, send it.
+		memcpy(buffer + sizeof(uint32_t), data_start, data_size - sizeof(uint32_t));
+		send(client->sock_fd, buffer, data_size, MSG_DONTWAIT);
+	}
+}
+
 void handle_client_request(client_t *client, mess_client_server_t *m_client) {
-//	printf("client s_id=%lu requested neen=%d\n", client->session_id, m_client->next_expected_event_no);
+	send_events(client, m_client->next_expected_event_no);
 }
 
 void handle_timeouts() {
@@ -255,33 +310,6 @@ void handle_new_client() {
 	client_timer_restart(new_client);
 }
 
-void send_events(client_t *client, size_t event_no) {
-	// TODO do this in different thread (probably).
-
-	ssize_t last = event_storage_last(event_storage);
-
-	if (last == -1 || event_no > last)
-		return;
-
-	serialized_event_t *event = event_storage_get(event_storage, event_no);
-	int8_t *message_start = event->data;
-	size_t message_size = event->len;
-
-	for (size_t i = event_no + 1; i <= last; ++i) {
-		event = event_storage_get(event_storage, i);
-
-		if (message_size + event->len > BUFFER_SIZE) {
-			send(client->sock_fd, message_start, message_size, 0);
-			message_size = 0;
-			message_start = event->data;
-		}
-		message_size += event->len;
-	}
-
-	if (message_size > 0) {
-		send(client->sock_fd, message_start, message_size, 0);
-	}
-}
 
 void handle_client_message(client_t *client) {
 	client_timer_restart(client);
@@ -340,15 +368,12 @@ void handle_round() {
 
 //	printf("handle_round: last event %zd\n", event_storage_last(event_storage)); // TODO remove
 
-	if (game_state(game) == GS_OVER) {
-		printf("handle_round: restarting game\n");
-		game_restart(game);
-		return;
-	}
 	list_t *game_events = game_tick(game);
 	if (game_events == NULL)
 		return;
-	printf("new events: %zu\n", list_size(game_events));
+
+	printf("new events: %zu\n", list_size(game_events)); //TODO remove
+
 	for (list_node_t *node = list_head(game_events); node != NULL; node = list_next(node)) {
 		game_event_t *g_event = list_element(node);
 		event_storage_push(event_storage, g_event);
@@ -394,6 +419,9 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
+		if (loop_actions & LA_ROUND) {
+			handle_round();
+		}
 		if (loop_actions & LA_TIMEOUT) {
 			handle_timeouts();
 		}
@@ -403,10 +431,6 @@ int main(int argc, char *argv[]) {
 		if (loop_actions & LA_DATA) {
 			handle_clients();
 		}
-		if (loop_actions & LA_ROUND) {
-			handle_round();
-		}
-
 	}
 
 	return 0;

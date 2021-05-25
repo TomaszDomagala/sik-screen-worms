@@ -16,7 +16,7 @@
 
 
 struct game_s {
-	uint8_t state;
+	bool in_progress;
 	uint32_t game_id;
 	size_t width;
 	size_t height;
@@ -39,8 +39,8 @@ game_t *game_create(size_t width, size_t height) {
 	if (game == NULL)
 		return NULL;
 
-	game->state = GS_WAITING;
-	game->game_id = rand_get();
+	game->in_progress = false;
+	game->game_id = 0;
 
 	game->players = list_create(sizeof(player_t));
 	game->waiting = list_create(sizeof(player_t));
@@ -66,8 +66,8 @@ game_t *game_create(size_t width, size_t height) {
 	return game;
 }
 
-uint8_t game_state(game_t *game) {
-	return game->state;
+bool game_in_progress(game_t *game) {
+	return game->in_progress;
 }
 
 player_t player_create(uint64_t session_id, int8_t *player_name) {
@@ -139,35 +139,26 @@ bool game_set_turn_direction(game_t *game, uint64_t session_id, uint8_t turn_dir
 	list_node_t *player_node;
 	player_t *player;
 
-	switch (game->state) {
-		case GS_WAITING: {
-			player_node = find_player(game->waiting, session_id);
-			if (player_node == NULL)
-				return false;
-			player = list_element(player_node);
+	if (game->in_progress) {
+		player_node = find_player(game->players, session_id);
+		if (player_node == NULL)
+			return false;
+		player = list_element(player_node);
+		player->turn_direction = turn_direction;
+		return true;
+	} else {
+		player_node = find_player(game->waiting, session_id);
+		if (player_node == NULL)
+			return false;
+		player = list_element(player_node);
 
-			if (player->turn_direction == 0 && turn_direction > 0) {
-				game->players_ready++;
-			} else if (player->turn_direction > 0 && turn_direction == 0) {
-				game->players_ready--;
-			}
-			player->turn_direction = turn_direction;
-			return true;
+		if (player->turn_direction == 0 && turn_direction > 0) {
+			game->players_ready++;
+		} else if (player->turn_direction > 0 && turn_direction == 0) {
+			game->players_ready--;
 		}
-		case GS_IN_PROGRESS: {
-			player_node = find_player(game->players, session_id);
-			if (player_node == NULL)
-				return false;
-			player = list_element(player_node);
-			player->turn_direction = turn_direction;
-			return true;
-		}
-		case GS_OVER: {
-			return true;
-		}
-		default:
-			assert(false);
-			break;
+		player->turn_direction = turn_direction;
+		return true;
 	}
 }
 
@@ -182,14 +173,14 @@ void save_players_names(game_t *game) {
 }
 
 list_t *game_tick_waiting(game_t *game) {
-	assert(game->state == GS_WAITING);
 	if (game->players_ready > 1 && list_size(game->waiting) == game->players_ready) {
 		// If there are at least 2 players and all of them are ready, start the game.
-		game->state = GS_IN_PROGRESS;
+		game->in_progress = true;
 	} else {
 		return NULL;
 	}
 	printf("starting game\n");
+	game->game_id = rand_get();
 
 	list_t *temp = game->players;
 	game->players = game->waiting;
@@ -247,8 +238,6 @@ list_t *game_tick_waiting(game_t *game) {
 }
 
 list_t *game_tick_in_progress(game_t *game) {
-	assert(game->state == GS_IN_PROGRESS);
-
 	game_event_t event;
 	list_t *events = list_create(sizeof(game_event_t));
 
@@ -305,9 +294,11 @@ list_t *game_tick_in_progress(game_t *game) {
 	}
 
 	if (game->players_alive <= 1) {
+		// Game end.
 		event.type = GE_GAME_OVER;
 		event.event_no = game->next_event_no++;
 		list_add(events, &event);
+		game_restart(game);
 	}
 
 	return events;
@@ -319,25 +310,15 @@ list_t *game_tick(game_t *game) {
 //		   list_size(game->players),
 //		   list_size(game->waiting),
 //		   list_size(game->observers)); // TODO remove.
-
-	switch (game->state) {
-		case GS_WAITING: {
-			return game_tick_waiting(game);
-		}
-		case GS_IN_PROGRESS: {
-			return game_tick_in_progress(game);
-		}
-		case GS_OVER: {
-			return NULL;
-		}
+	if (game->in_progress) {
+		return game_tick_in_progress(game);
+	} else {
+		return game_tick_waiting(game);
 	}
-	assert(false);
-	return NULL;
 }
 
 bool game_restart(game_t *game) {
-	game->game_id = rand_get();
-	game->state = GS_WAITING;
+	game->in_progress = false;
 	game->players_ready = 0;
 	game->players_alive = 0;
 
@@ -346,6 +327,7 @@ bool game_restart(game_t *game) {
 
 	for (list_node_t *node = list_head(game->players); node != NULL; node = list_next(node)) {
 		player_t *player = list_element(node);
+		player->turn_direction = 0;
 		if (!(player->status & PS_DISCONNECTED))
 			list_add(game->waiting, player);
 	}
