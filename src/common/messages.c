@@ -2,6 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include "crc32.h"
 
 #if defined(__linux__)
 
@@ -103,8 +104,9 @@ int serialize_game_event_game_over() {
 
 
 int serialize_game_event(int8_t *buffer, game_event_t *event) {
+	int8_t *buffer_start = buffer;
 	int8_t *data = buffer + 9; // len + event_no + event_type.
-	uint32_t event_len, total_len, be_len, be_event_no, be_crc32;
+	uint32_t event_len, be_len, be_event_no, be_crc32;
 
 	switch (event->type) {
 		case GE_NEW_GAME:
@@ -133,11 +135,10 @@ int serialize_game_event(int8_t *buffer, game_event_t *event) {
 	memcpy(buffer, &event->type, sizeof(uint8_t));
 	buffer += event_len - 4; // Move buffer to crc32 field.
 
-	// TODO crc32
-	be_crc32 = htobe32(7);
+	be_crc32 = htobe32(crc32(buffer_start, event_len + sizeof(uint32_t))); // len, event_* fields.
 	memcpy(buffer, &be_crc32, sizeof(uint32_t));
 
-	return event_len + 2 * sizeof(uint32_t); //
+	return event_len + 2 * sizeof(uint32_t); // length of len, event_*, crc32 fields.
 }
 
 int deserialize_game_event_new_game(int8_t *buffer, game_event_t *event, uint32_t data_len) {
@@ -196,19 +197,21 @@ int deserialize_game_event_game_over(int8_t *buffer, game_event_t *event) {
 }
 
 int deserialize_game_event(int8_t *buffer, game_event_t *event) {
+	uint32_t *header = buffer, *data, crc32_buff;
+
 	uint32_t event_len;
 
 	// TODO crc32
-	memcpy(&event_len, buffer, sizeof(uint32_t));
+	memcpy(&event_len, header, sizeof(uint32_t));
 	event_len = be32toh(event_len);
-	buffer += sizeof(uint32_t);
+	header += sizeof(uint32_t);
 
-	memcpy(&event->event_no, buffer, sizeof(uint32_t));
+	memcpy(&event->event_no, header, sizeof(uint32_t));
 	event->event_no = be32toh(event->event_no);
-	buffer += sizeof(uint32_t);
+	header += sizeof(uint32_t);
 
-	memcpy(&event->type, buffer, sizeof(uint8_t));
-	buffer += sizeof(uint8_t);
+	memcpy(&event->type, header, sizeof(uint8_t));
+	header += sizeof(uint8_t);
 
 	switch (event->type) {
 		case GE_NEW_GAME:
@@ -223,7 +226,8 @@ int deserialize_game_event(int8_t *buffer, game_event_t *event) {
 		case GE_GAME_OVER:
 			deserialize_game_event_game_over(buffer, event);
 			break;
+		default:
+			return -1;
 	}
-	// TODO crc32.
 	return event_len + 2 * sizeof(uint32_t);
 }

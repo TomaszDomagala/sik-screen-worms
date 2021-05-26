@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
 	init_timer();
 	init_epoll();
 
-	// MOCK
+	// MOCK TODO remove
 	game_event_t ge;
 	ge.type = GE_NEW_GAME;
 	ge.event_no = 0;
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
 	ge.data.new_game.max_y = 480;
 	ge.data.new_game.players_num = 3;
 
-	int8_t *names[3];
+	int8_t *names[3]; // TODO remove
 	names[0] = "adam";
 	names[1] = "eve";
 	names[2] = "cain";
