@@ -8,7 +8,7 @@
 #include "utils/stack.h"
 #include "messages.h"
 
-#define DEFAULT_BLOCK_SIZE 1024
+#define DEFAULT_BLOCK_SIZE 128
 
 struct event_storage_s {
 	size_t block_size;
@@ -29,7 +29,7 @@ event_storage_t *event_storage_create() {
 	storage->events = stack_create(sizeof(serialized_event_t));
 	storage->block_size = 0;
 	storage->block_capacity = DEFAULT_BLOCK_SIZE;
-
+	memset(storage->block, '$', storage->block_capacity); // TODO remove
 	if (storage->block == NULL || storage->events == NULL) {
 		stack_free(storage->events);
 		free(storage->block);
@@ -51,20 +51,19 @@ bool event_storage_push(event_storage_t *storage, game_event_t *event) {
 	if (storage->block_size + event_size >= storage->block_capacity) {
 		size_t new_capacity = 2 * storage->block_capacity;
 		int8_t *new_block = realloc(storage->block, new_capacity);
-
 		if (new_block == NULL) {
 			return false;
 		}
+		memset(new_block + storage->block_size, '$', new_capacity - storage->block_size); // TODO remove
 		storage->block = new_block;
 		storage->block_capacity = new_capacity;
 	}
 	assert(storage->block_size + event_size < storage->block_capacity);
 
-	int8_t *data_pos = storage->block + storage->block_size;
-	memcpy(data_pos, storage->buffer, event_size);
+	memcpy(storage->block + storage->block_size, storage->buffer, event_size);
 
 	serialized_event_t s_event;
-	s_event.data = data_pos;
+	s_event.offset = storage->block_size;
 	s_event.len = event_size;
 
 	if (stack_push(storage->events, &s_event) == -1) {
@@ -77,4 +76,15 @@ bool event_storage_push(event_storage_t *storage, game_event_t *event) {
 
 serialized_event_t *event_storage_get(event_storage_t *storage, size_t index) {
 	return stack_get(storage->events, index);
+}
+
+void event_storage_free(event_storage_t *storage) {
+	if (storage == NULL)
+		return;
+	stack_free(storage->events);
+	free(storage);
+}
+
+int8_t *event_storage_get_data(event_storage_t *storage, size_t offset) {
+	return storage->block + offset;
 }

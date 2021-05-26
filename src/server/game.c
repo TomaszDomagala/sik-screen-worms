@@ -73,7 +73,7 @@ bool game_in_progress(game_t *game) {
 player_t player_create(uint64_t session_id, int8_t *player_name) {
 	player_t player;
 	player.session_id = session_id;
-	player.status |= PS_WAITING;
+	player.status = PS_WAITING;
 	player.turn_direction = 0;
 	player.x_pos = 0;
 	player.y_pos = 0;
@@ -89,6 +89,32 @@ list_node_t *find_player(list_t *players, uint64_t session_id) {
 	}
 
 	return NULL;
+}
+
+void game_restart(game_t *game) {
+	game->in_progress = false;
+	game->players_ready = 0;
+	game->players_alive = 0;
+	game->next_event_no = 0;
+
+	game_board_free(game->board);
+	game->board = game_board_create(game->width, game->height);
+
+	free(game->players_names);
+	game->players_names = NULL;
+
+	for (list_node_t *node = list_head(game->players); node != NULL; node = list_next(node)) {
+		player_t *player = list_element(node);
+		if (!(player->status & PS_DISCONNECTED))
+			list_add(game->waiting, player);
+	}
+	list_remove_all(game->players);
+	for (list_node_t *node = list_head(game->waiting); node != NULL; node = list_next(node)) {
+		player_t *player = list_element(node);
+		player->turn_direction = 0;
+		player->status = PS_WAITING;
+	}
+
 }
 
 bool add_observer(game_t *game, uint64_t session_id, int8_t *player_name) {
@@ -179,7 +205,6 @@ list_t *game_tick_waiting(game_t *game) {
 	} else {
 		return NULL;
 	}
-	printf("starting game\n");
 	game->game_id = rand_get();
 
 	list_t *temp = game->players;
@@ -271,15 +296,18 @@ list_t *game_tick_in_progress(game_t *game) {
 
 		uint32_t new_x = floor(player->x_pos), new_y = floor(player->y_pos);
 
+		if (x == new_x && y == new_y)
+			continue;
+
 		// Player is dead if out of the board.
 		bool dead = player->x_pos < 0 || player->x_pos >= game->width;
 		dead = dead || player->y_pos < 0 || player->y_pos >= game->height;
 
 		// Player is dead if went to new pixel and it is already eaten.
-		dead = dead || ((x != new_x || y != new_y) && game_board_get(game->board, new_x, new_y));
+		dead = dead || game_board_get(game->board, new_x, new_y);
 
 		if (dead) {
-			player->status &= PS_DEAD;
+			player->status |= PS_DEAD;
 			game->players_alive--;
 			event.type = GE_PLAYER_ELIMINATED;
 			event.data.player_eliminated.player_number = player_num;
@@ -288,6 +316,7 @@ list_t *game_tick_in_progress(game_t *game) {
 			event.data.pixel.player_number = player_num;
 			event.data.pixel.x = new_x;
 			event.data.pixel.y = new_y;
+			game_board_set(game->board, new_x, new_y);
 		}
 		event.event_no = game->next_event_no++;
 		list_add(events, &event);
@@ -317,19 +346,8 @@ list_t *game_tick(game_t *game) {
 	}
 }
 
-bool game_restart(game_t *game) {
-	game->in_progress = false;
-	game->players_ready = 0;
-	game->players_alive = 0;
 
-	free(game->players_names);
-	game->players_names = NULL;
-
-	for (list_node_t *node = list_head(game->players); node != NULL; node = list_next(node)) {
-		player_t *player = list_element(node);
-		player->turn_direction = 0;
-		if (!(player->status & PS_DISCONNECTED))
-			list_add(game->waiting, player);
-	}
-	list_remove_all(game->players);
+uint32_t game_get_id(game_t *game) {
+	return game->game_id;
 }
+

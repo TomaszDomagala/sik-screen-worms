@@ -14,7 +14,7 @@ typedef struct event_storage_s event_storage_t;
 
 typedef struct {
 	size_t len;
-	int8_t *data;
+	size_t offset;
 } serialized_event_t;
 
 event_storage_t *event_storage_create();
@@ -24,5 +24,9 @@ bool event_storage_push(event_storage_t *storage, game_event_t *event);
 serialized_event_t *event_storage_get(event_storage_t *storage, size_t index);
 
 ssize_t event_storage_last(event_storage_t *storage);
+
+void event_storage_free(event_storage_t *storage);
+
+int8_t *event_storage_get_data(event_storage_t *storage, size_t offset);
 
 #endif //SIK_SCREEN_WORMS_EVENTS_STORAGE_H

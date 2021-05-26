@@ -47,7 +47,7 @@ client_t *clients_new_client(clients_collection_t *clients, uint64_t session_id,
  * @param clients - pointer to the clients collection.
  * @param sock_fd - client's socket file descriptor.
  */
-void clients_delete_client(clients_collection_t *clients, int32_t sock_fd);
+void clients_delete_client(clients_collection_t *clients, uint64_t session_id);
 
 client_t *clients_find_client_by_session_id(clients_collection_t *clients, uint64_t session_id);
 

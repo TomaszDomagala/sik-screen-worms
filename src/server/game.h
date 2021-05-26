@@ -43,8 +43,6 @@ bool game_remove_player(game_t *game, uint64_t session_id);
 
 list_t *game_tick(game_t *game);
 
-bool game_restart(game_t *game);
-
 uint32_t game_get_id(game_t *game);
 
 

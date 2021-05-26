@@ -14,6 +14,7 @@
 #include "clients.h"
 #include "messages.h"
 #include "game.h"
+#include "rand.h"
 #include <errno.h>
 #include "events_storage.h"
 
@@ -61,6 +62,7 @@ struct itimerspec timer;
 server_args_t args;
 
 game_t *game;
+bool is_game_in_progress = false;
 
 
 void init_server() {
@@ -165,6 +167,7 @@ void init_epoll() {
 }
 
 void init_game() {
+	rand_set(args.rng_seed);
 	game = game_create(args.board_width, args.board_height);
 }
 
@@ -188,7 +191,7 @@ void send_events(client_t *client, size_t event_no) {
 	serialized_event_t *event;
 
 	event = event_storage_get(event_storage, event_no);
-	int8_t *data_start = event->data;
+	size_t data_start = event->offset;
 	data_size += event->len;
 
 	for (size_t i = event_no + 1; i <= last; ++i) {
@@ -196,12 +199,13 @@ void send_events(client_t *client, size_t event_no) {
 
 		if (data_size + event->len > MAX_UDP_SIZE) {
 			// Copy data to the buffer and send.
-			memcpy(buffer + sizeof(uint32_t), data_start, data_size - sizeof(uint32_t));
+			int8_t *data = event_storage_get_data(event_storage, data_start);
+			memcpy(buffer + sizeof(uint32_t), data, data_size - sizeof(uint32_t));
 			if (send(client->sock_fd, buffer, data_size, MSG_DONTWAIT) != data_size) {
 				// Would block, error or partial write. In every case wait for next client request.
 				return;
 			}
-			data_start = event->data;
+			data_start = event->offset;
 			data_size = sizeof(uint32_t);
 		}
 		data_size += event->len;
@@ -209,7 +213,8 @@ void send_events(client_t *client, size_t event_no) {
 
 	if (data_size > sizeof(uint32_t)) {
 		// If something is in the buffer, send it.
-		memcpy(buffer + sizeof(uint32_t), data_start, data_size - sizeof(uint32_t));
+		int8_t *data = event_storage_get_data(event_storage, data_start);
+		memcpy(buffer + sizeof(uint32_t), data, data_size - sizeof(uint32_t));
 		send(client->sock_fd, buffer, data_size, MSG_DONTWAIT);
 	}
 }
@@ -232,7 +237,7 @@ void handle_timeouts() {
 				syserr("server: epoll_ctl");
 
 			game_remove_player(game, client->session_id);
-			clients_delete_client(clients, client->sock_fd);
+			clients_delete_client(clients, client->session_id);
 		}
 
 	}
@@ -288,7 +293,7 @@ void handle_new_client() {
 		return;
 	}
 	if (!game_add_player(game, new_client->session_id, new_client->player_name)) {
-		clients_delete_client(clients, new_client->sock_fd);
+		clients_delete_client(clients, new_client->session_id);
 		perror("handle_new_client: cannot create new player\n");
 		return;
 	}
@@ -365,14 +370,25 @@ void handle_round() {
 		syserr("handle_round: read");
 	if (rounds > 1)
 		fprintf(stderr, "server is lagging: %lu rounds skipped\n", rounds - 1);
-
 //	printf("handle_round: last event %zd\n", event_storage_last(event_storage)); // TODO remove
 
 	list_t *game_events = game_tick(game);
 	if (game_events == NULL)
 		return;
 
-	printf("new events: %zu\n", list_size(game_events)); //TODO remove
+	if (is_game_in_progress == false && game_in_progress(game) == true) {
+		// Game started.
+		printf("Game start id=%u\n", game_get_id(game));
+		is_game_in_progress = true;
+		event_storage_free(event_storage);
+		init_event_storage();
+	} else if (is_game_in_progress == true && game_in_progress(game) == false) {
+		// Game ended.
+		printf("Game end id=%u\n", game_get_id(game));
+		is_game_in_progress = false;
+	}
+
+//	printf("new events: %zu\n", list_size(game_events)); //TODO remove
 
 	for (list_node_t *node = list_head(game_events); node != NULL; node = list_next(node)) {
 		game_event_t *g_event = list_element(node);

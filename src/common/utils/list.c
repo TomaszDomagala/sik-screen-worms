@@ -44,7 +44,7 @@ list_node_t *list_add(list_t *list, void *element) {
 	list_node_t *node = malloc(sizeof(list_node_t) + list->element_size);
 	if (node == NULL)
 		return NULL;
-
+	memset(node, 0, sizeof(list_node_t));
 	memcpy(node->element, element, list->element_size);
 
 	if (list->tail == NULL) {
@@ -54,6 +54,7 @@ list_node_t *list_add(list_t *list, void *element) {
 		node->prev = list->tail;
 	}
 	list->tail = node;
+	node->next = NULL;
 
 	list->size++;
 	return node;
@@ -62,13 +63,13 @@ list_node_t *list_add(list_t *list, void *element) {
 void list_remove(list_t *list, list_node_t *node) {
 	list_node_t **prev_next, **next_prev;
 
-	if (node->prev == NULL) {
+	if (list->head == node) {
 		prev_next = &list->head;
 	} else {
 		prev_next = &node->prev->next;
 	}
 
-	if (node->next == NULL) {
+	if (list->tail == node) {
 		next_prev = &list->tail;
 	} else {
 		next_prev = &node->next->prev;
