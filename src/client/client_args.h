@@ -14,7 +14,7 @@ typedef struct {
 } client_args_t;
 
 typedef enum {
-	cpr_Success, cpr_MissingPlayerName, cpr_MissingServerAddress, cpr_InvalidPlayerName, cpr_InvalidArgument
+	cpr_Success, cpr_MissingServerAddress, cpr_InvalidPlayerName, cpr_InvalidArgument
 } cp_res_t;
 
 cp_res_t parse_client_args(int argc, char **argv, client_args_t *args);

@@ -43,13 +43,13 @@ int32_t read_port(char *port_str) {
 
 
 cp_res_t parse_client_args(int argc, char **argv, client_args_t *args) {
-	bool player_name_set = false;
 	int opt;
 
 	// Set default values.
 	args->server_port = 2021;
 	args->gui_address = "localhost";
 	args->gui_port = 20210;
+	args->player_name = NULL;
 
 	optind = 1;
 	while ((opt = getopt(argc, argv, "n:p:i:r:")) != -1) {
@@ -58,7 +58,6 @@ cp_res_t parse_client_args(int argc, char **argv, client_args_t *args) {
 				if (!player_name_valid(optarg)) {
 					return cpr_InvalidPlayerName;
 				}
-				player_name_set = true;
 				args->player_name = optarg;
 				break;
 			case 'p': // server_port
@@ -78,8 +77,9 @@ cp_res_t parse_client_args(int argc, char **argv, client_args_t *args) {
 				return cpr_InvalidArgument;
 		}
 	}
-	if (!player_name_set) {
-		return cpr_MissingPlayerName;
+	if (args->player_name == NULL) {
+		args->player_name = malloc(21 * sizeof(int8_t));
+		memset(args->player_name, 0, 21 * sizeof(int8_t));
 	}
 	if (optind >= argc) {
 		return cpr_MissingServerAddress;

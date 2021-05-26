@@ -12,14 +12,14 @@
 #include <stdlib.h>
 #include "err.h"
 #include <errno.h>
+#include <assert.h>
 #include "gui_messages.h"
 
-#define BUFFER_SIZE 1024
+#define GUI_BUFFER_SIZE 2048
 
 struct gui_client_s {
 	int sock_fd;
-	int8_t buffer[BUFFER_SIZE];
-
+	int8_t buffer[GUI_BUFFER_SIZE];
 };
 
 // TODO export this function to commons
@@ -105,9 +105,12 @@ int gui_client_send_event(gui_client_t *client, game_event_t *event, int8_t **na
 
 // TODO handle errors.
 // TODO non blocking sockets
-int gui_client_recv_event(gui_client_t *client, gui_message_t *gui_message) {
-	int total_rec = 0, space_left = BUFFER_SIZE, rec;
-	memset(client->buffer, 0, BUFFER_SIZE);
+int gui_client_recv_event(gui_client_t *client, list_t *gui_messages) {
+	assert(gui_messages != NULL);
+	assert(list_size(gui_messages) == 0);
+
+	int total_rec = 0, space_left = GUI_BUFFER_SIZE, rec;
+	memset(client->buffer, 0, GUI_BUFFER_SIZE);
 
 	while ((rec = recv(client->sock_fd, client->buffer + total_rec, space_left, MSG_DONTWAIT)) > 0) {
 		printf("rec %d\n", rec);
@@ -117,7 +120,16 @@ int gui_client_recv_event(gui_client_t *client, gui_message_t *gui_message) {
 	if (rec == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
 		printf("would block\n");
 	}
-	printf("gui_client_recv_event buffer:\n%s\n", client->buffer);
+
+	int8_t *buffer = client->buffer;
+	int total_des = 0, des;
+	gui_message_t message;
+
+	while (total_des < total_rec) {
+		des = deserialize_gui_client_message(buffer + total_des, total_rec - total_des, &message);
+		total_des += des;
+		list_add(gui_messages, &message);
+	}
 
 	return 0;
 }

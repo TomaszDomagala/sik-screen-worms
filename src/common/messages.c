@@ -159,8 +159,9 @@ int deserialize_game_event_new_game(int8_t *buffer, game_event_t *event, uint32_
 	uint8_t names_num = 0;
 
 	while (names_len > 0) {
+		// TODO add error handling to strlen, maybe strnlen?
 		int len = strlen(buffer) + 1; // Length with \0.
-		names[names_num] = malloc(names_len);
+		names[names_num] = malloc(len);
 		memcpy(names[names_num], buffer, len);
 		buffer += len;
 		names_len -= len;
@@ -243,8 +244,6 @@ int deserialize_game_event(int8_t *buffer, size_t buffer_len, game_event_t *even
 		case GE_GAME_OVER:
 			// GAME_OVER event has no data.
 			break;
-		default:
-			return -1;
 	}
 	return event_len + 2 * sizeof(uint32_t);
 }

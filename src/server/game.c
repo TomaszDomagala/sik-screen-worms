@@ -213,7 +213,7 @@ void sort_players(list_t *players) {
 
 		for (list_node_t *node = list_next(min_node); node != NULL; node = list_next(node)) {
 			player_t *player = list_element(node);
-			if (strcmp(player->player_name, min_player->player_name) < 0) {
+			if (strcasecmp(player->player_name, min_player->player_name) < 0) {
 				min_node = node;
 				min_player = player;
 			}

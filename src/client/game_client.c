@@ -9,10 +9,15 @@
 #include <stdlib.h>
 #include "err.h"
 #include <errno.h>
+#include "utils/list.h"
 #include "messages.h"
+#include <assert.h>
+
+#define CLIENT_BUFFER_SIZE 1024
 
 struct game_client_s {
 	int sock_fd;
+	int8_t buffer[CLIENT_BUFFER_SIZE];
 };
 
 // TODO export this function to commons
@@ -74,10 +79,66 @@ void game_client_disconnect(game_client_t *client) {
 
 }
 
+/**
+ * Serialize and send single client message to the connected server.
+ * @param client
+ * @param client_message
+ * @return number of bytes sent or -1 in case of error or partial send.
+ */
 int game_client_send(game_client_t *client, mess_client_server_t *client_message) {
-
+	int num_bytes = serialize_client_message(client->buffer, client_message);
+	if (num_bytes == send(client->sock_fd, client->buffer, num_bytes, MSG_DONTWAIT)) {
+		return num_bytes;
+	}
+	if (num_bytes == -1 && errno != EWOULDBLOCK && errno != EAGAIN) {
+		perror("game_client_send: send");
+	}
+	return -1;
 }
 
-int game_client_recv(game_client_t *client, game_event_t *event) {
+/**
+ * Receive and deserialize single server message.
+ * Set game_id field to game_id received in the message.
+ * Add all events from the message to the events list.
+ * Stop message deserialization as soon as first event failed to deserialize.
+ * @param client
+ * @param game_id
+ * @param events
+ * @return
+ */
+int game_client_recv(game_client_t *client, uint32_t *game_id, list_t *events) {
+	assert(events != NULL);
+	assert(list_size(events) == 0);
 
+	int num_bytes, serialized, total_serialized = 0;
+
+	num_bytes = recv(client->sock_fd, client->buffer, CLIENT_BUFFER_SIZE, MSG_DONTWAIT);
+	if (num_bytes == -1) {
+		if (errno != EWOULDBLOCK && errno != EAGAIN)
+			perror("game_client_recv: recv");
+		return -1;
+	}
+	if (num_bytes < sizeof(uint32_t)) {
+		return -1;
+	}
+
+	int8_t *buffer = client->buffer;
+	memcpy(game_id, buffer, sizeof(uint32_t));
+	total_serialized += sizeof(uint32_t);
+	*game_id = be32toh(*game_id);
+
+	game_event_t event;
+	while (total_serialized < num_bytes) {
+		serialized = deserialize_game_event(buffer + total_serialized, num_bytes - total_serialized, &event);
+		if (serialized == -1) {
+			return 0;
+		}
+		total_serialized += serialized;
+		list_add(events, &event);
+	}
+	return 0;
+}
+
+int game_client_socket(game_client_t *client){
+	return client->sock_fd;
 }
