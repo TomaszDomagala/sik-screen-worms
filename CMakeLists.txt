@@ -9,7 +9,7 @@ add_subdirectory(src)
 add_subdirectory(tests)
 
 set_target_properties(
-        screen-worms-client screen-worms-server screen-worms-gui
+        screen-worms-client screen-worms-server
         PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )

@@ -4,3 +4,5 @@ cmake-build-debug
 build
 build_server
 build_client
+screen-worms-client
+screen-worms-server
