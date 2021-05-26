@@ -143,8 +143,6 @@ int serialize_game_event(int8_t *buffer, game_event_t *event) {
 }
 
 int deserialize_game_event_new_game(int8_t *buffer, game_event_t *event, uint32_t data_len) {
-	// TODO add error handling.
-
 	memcpy(&event->data.new_game.max_x, buffer, sizeof(uint32_t));
 	event->data.new_game.max_x = be32toh(event->data.new_game.max_x);
 	buffer += sizeof(uint32_t);
@@ -159,7 +157,6 @@ int deserialize_game_event_new_game(int8_t *buffer, game_event_t *event, uint32_
 	uint8_t names_num = 0;
 
 	while (names_len > 0) {
-		// TODO add error handling to strlen, maybe strnlen?
 		int len = strlen(buffer) + 1; // Length with \0.
 		names[names_num] = malloc(len);
 		memcpy(names[names_num], buffer, len);

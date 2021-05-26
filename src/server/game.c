@@ -365,11 +365,6 @@ list_t *game_tick_in_progress(game_t *game) {
 }
 
 list_t *game_tick(game_t *game) {
-//	printf("game_tick: pr=%d p=%zu w=%zu o=%zu\n",
-//		   game->players_ready,
-//		   list_size(game->players),
-//		   list_size(game->waiting),
-//		   list_size(game->observers)); // TODO remove.
 	if (game->in_progress) {
 		return game_tick_in_progress(game);
 	} else {

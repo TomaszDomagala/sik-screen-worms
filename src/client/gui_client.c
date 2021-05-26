@@ -45,7 +45,6 @@ gui_client_t *gui_client_connect(char *address, char *port) {
 			perror("gui_client_connect: socket");
 			continue;
 		}
-		// TODO add TCP_NODELAY option.
 		if (setsockopt(sock_fd, IPPROTO_TCP, TCP_NODELAY, &tcp_no_delay_on, sizeof(tcp_no_delay_on)) == -1) {
 			perror("gui_client_connect: setsockopt");
 			continue;
@@ -92,8 +91,6 @@ int gui_client_send_event(gui_client_t *client, game_event_t *event, int8_t **na
 	return sent == -1 ? -1 : 0;
 }
 
-// TODO handle errors.
-// TODO non blocking sockets
 int gui_client_recv_event(gui_client_t *client, list_t *gui_messages) {
 	assert(gui_messages != NULL);
 	assert(list_size(gui_messages) == 0);

@@ -299,7 +299,6 @@ int main(int argc, char *argv[]) {
 			if (event_fd == timer_fd) {
 				handle_tick();
 			} else if (event_fd == gui_sock_fd) {
-				// TODO add disconnect handler.
 				if (epoll_events[i].events & EPOLLHUP) {
 					fatal("connection with gui lost");
 				}

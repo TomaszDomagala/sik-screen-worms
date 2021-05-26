@@ -28,7 +28,7 @@ screen-worms-client: build
 build:
 	mkdir build
 	cmake -S . -B build
-	make -f ./build/Makefile
+	cd build && make
 
 clean:
 	rm -f screen-worms-client

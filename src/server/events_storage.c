@@ -29,7 +29,6 @@ event_storage_t *event_storage_create() {
 	storage->events = stack_create(sizeof(serialized_event_t));
 	storage->block_size = 0;
 	storage->block_capacity = DEFAULT_BLOCK_SIZE;
-	memset(storage->block, '$', storage->block_capacity); // TODO remove
 	if (storage->block == NULL || storage->events == NULL) {
 		stack_free(storage->events);
 		free(storage->block);
@@ -54,7 +53,6 @@ bool event_storage_push(event_storage_t *storage, game_event_t *event) {
 		if (new_block == NULL) {
 			return false;
 		}
-		memset(new_block + storage->block_size, '$', new_capacity - storage->block_size); // TODO remove
 		storage->block = new_block;
 		storage->block_capacity = new_capacity;
 	}
