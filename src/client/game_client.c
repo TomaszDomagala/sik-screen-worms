@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include "err.h"
 #include <errno.h>
+#include "messages.h"
 
 struct game_client_s {
 	int sock_fd;
@@ -67,7 +68,6 @@ game_client_t *game_client_connect(char *address, char *port) {
 
 	client->sock_fd = sock_fd;
 	return client;
-
 }
 
 void game_client_disconnect(game_client_t *client) {

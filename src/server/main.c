@@ -255,13 +255,9 @@ void handle_new_client() {
 	num_bytes = recvfrom(server_sock_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &new_client_addr,
 						 &new_client_addr_len);
 
-	mess_binary_t m_binary;
-	m_binary.size = num_bytes;
-	m_binary.data = buffer;
-
 	mess_client_server_t m_client;
 
-	if (deserialize_client_message(&m_binary, &m_client) == -1) {
+	if (deserialize_client_message(buffer, num_bytes, &m_client) == -1) {
 		perror("handle_new_client: invalid client message\n");
 		return;
 	}
@@ -329,12 +325,8 @@ void handle_client_message(client_t *client) {
 		return;
 	}
 
-	mess_binary_t m_binary;
-	m_binary.size = num_bytes;
-	m_binary.data = buffer;
-
 	mess_client_server_t m_client;
-	if (deserialize_client_message(&m_binary, &m_client) == -1) {
+	if (deserialize_client_message(buffer, num_bytes, &m_client) == -1) {
 		fprintf(stderr, "handle_client_message: invalid client message\n");
 		return;
 	}

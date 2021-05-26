@@ -18,40 +18,44 @@
 #endif
 
 
-int serialize_client_message(mess_binary_t *m_binary, mess_client_server_t *m_client) {
+int serialize_client_message(int8_t *buffer, mess_client_server_t *m_client) {
 	uint64_t be_session_id = htobe64(m_client->session_id);
 	uint32_t be_next_expected_event_no = htobe32(m_client->next_expected_event_no);
 
-	memcpy(&m_binary->data[0], &be_session_id, 8);
-	memcpy(&m_binary->data[8], &m_client->turn_direction, 1);
-	memcpy(&m_binary->data[9], &be_next_expected_event_no, 4);
+	memcpy(buffer, &be_session_id, sizeof(uint64_t));
+	buffer += sizeof(uint64_t);
+	memcpy(buffer, &m_client->turn_direction, sizeof(uint8_t));
+	buffer += sizeof(uint8_t);
+	memcpy(buffer, &be_next_expected_event_no, sizeof(uint32_t));
+	buffer += sizeof(uint32_t);
 
 	uint64_t name_len = strlen(m_client->player_name);
 	if (name_len)
-		memcpy(&m_binary->data[13], m_client->player_name, name_len);
+		memcpy(buffer, m_client->player_name, name_len);
 
-	m_binary->size = 13 + name_len;
-
-	return 0;
+	return 13 + name_len;
 }
 
-int deserialize_client_message(mess_binary_t *m_binary, mess_client_server_t *m_client) {
-	if (m_binary->size < 13 || m_binary->size > 33)
+int deserialize_client_message(int8_t *buffer, size_t buffer_len, mess_client_server_t *m_client) {
+	if (buffer_len < 13 || buffer_len > 33)
 		return -1;
 
-	memcpy(&m_client->session_id, m_binary->data + 0, 8);
-	memcpy(&m_client->turn_direction, m_binary->data + 8, 1);
-	memcpy(&m_client->next_expected_event_no, m_binary->data + 9, 4);
+	memcpy(&m_client->session_id, buffer, sizeof(uint64_t));
+	buffer += sizeof(uint64_t);
+	memcpy(&m_client->turn_direction, buffer, sizeof(uint8_t));
+	buffer += sizeof(uint8_t);
+	memcpy(&m_client->next_expected_event_no, buffer, sizeof(uint32_t));
+	buffer += sizeof(uint32_t);
 
-	uint64_t name_len = m_binary->size - 13;
+	uint64_t name_len = buffer_len - 13;
 	memset(m_client->player_name, 0, 21);
 	if (name_len)
-		memcpy(m_client->player_name, m_binary->data + 13, name_len);
+		memcpy(m_client->player_name, buffer, name_len);
 
 	m_client->session_id = be64toh(m_client->session_id);
 	m_client->next_expected_event_no = be32toh(m_client->next_expected_event_no);
 
-	return 0;
+	return buffer_len;
 }
 
 

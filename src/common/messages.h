@@ -6,11 +6,6 @@
 
 #define MESS_MAX_SIZE 550
 
-// TODO delete this struct and refactor functions to return number of bytes and accept buffer pointers.
-typedef struct {
-	int32_t size;
-	int8_t *data;
-} mess_binary_t;
 
 typedef struct {
 	uint64_t session_id;
@@ -54,11 +49,10 @@ typedef struct {
 	game_event_data_t data;
 } game_event_t;
 
-void mess_binary_free(mess_binary_t *mess);
 
-int serialize_client_message(mess_binary_t *m_binary, mess_client_server_t *m_client);
+int serialize_client_message(int8_t *buffer, mess_client_server_t *m_client);
 
-int deserialize_client_message(mess_binary_t *m_binary, mess_client_server_t *m_client);
+int deserialize_client_message(int8_t *buffer, size_t buffer_len, mess_client_server_t *m_client);
 
 int serialize_game_event(int8_t *buffer, game_event_t *event);
 

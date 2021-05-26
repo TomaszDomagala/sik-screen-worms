@@ -12,7 +12,7 @@ void tearDown() {
 
 void test_client_to_server_messages() {
 	int8_t buffer[MESS_MAX_SIZE];
-
+	int ser_len, des_len;
 
 	mess_client_server_t m_client;
 	m_client.session_id = 400;
@@ -20,13 +20,13 @@ void test_client_to_server_messages() {
 	m_client.next_expected_event_no = 4000111000;
 	strcpy(m_client.player_name, "player1");
 
-	mess_binary_t m_binary;
-	m_binary.data = buffer;
 
-	serialize_client_message(&m_binary, &m_client);
+	ser_len = serialize_client_message(buffer, &m_client);
+	TEST_ASSERT_EQUAL(20, ser_len);
 
 	mess_client_server_t deserialized;
-	deserialize_client_message(&m_binary, &deserialized);
+	des_len = deserialize_client_message(buffer, ser_len, &deserialized);
+	TEST_ASSERT_EQUAL(20,des_len);
 
 	TEST_ASSERT_EQUAL(400, deserialized.session_id);
 	TEST_ASSERT_EQUAL(1, deserialized.turn_direction);
