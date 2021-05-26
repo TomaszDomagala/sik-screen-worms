@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #include "err.h"
 #include <errno.h>
-#include "utils/list.h"
-#include "utils/utils.h"
+#include "list.h"
+#include "utils.h"
 #include "messages.h"
 #include <assert.h>
 
@@ -121,7 +121,7 @@ int game_client_recv(game_client_t *client, uint32_t *game_id, list_t *events) {
 	while (total_serialized < num_bytes) {
 		serialized = deserialize_game_event(buffer + total_serialized, num_bytes - total_serialized, &event);
 		if (serialized == -1) {
-			return 0;
+			return -1;
 		}
 		total_serialized += serialized;
 		list_add(events, &event);

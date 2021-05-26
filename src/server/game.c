@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "config.h"
 #include "rand.h"
-#include "utils/list.h"
+#include "list.h"
 #include "game_board.h"
 #include <assert.h>
 #include "string.h"

@@ -2,7 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include "utils/utils.h"
+#include "utils.h"
 
 #if defined(__linux__)
 

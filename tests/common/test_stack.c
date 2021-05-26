@@ -1,5 +1,5 @@
 #include "unity.h"
-#include "utils/stack.h"
+#include "stack.h"
 
 void setUp() {
 

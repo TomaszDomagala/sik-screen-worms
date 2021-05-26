@@ -1,11 +1,12 @@
 #include "clients.h"
 #include <stdint.h>
+#include <time.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <sys/timerfd.h>
 #include <unistd.h>
 #include "config.h"
-#include "utils/list.h"
+#include "list.h"
 #include "err.h"
 #include <string.h>
 
@@ -86,7 +87,7 @@ void clients_delete_client(clients_collection_t *clients, uint64_t session_id) {
 	list_remove(clients->clients_list, node);
 }
 
-client_t *clients_find_client_by_session_id(clients_collection_t *clients, uint64_t session_id) {
+client_t *clients_find_by_session_id(clients_collection_t *clients, uint64_t session_id) {
 	list_node_t *node = find_by_session_id(clients, session_id);
 	return node != NULL ? list_element(node) : NULL;
 }
@@ -94,3 +95,22 @@ client_t *clients_find_client_by_session_id(clients_collection_t *clients, uint6
 list_t *clients_get_all(clients_collection_t *clients) {
 	return clients->clients_list;
 }
+
+client_t *clients_find_by_socket_id(clients_collection_t *clients, uint64_t socket_id) {
+	for (list_node_t *node = list_head(clients->clients_list); node != NULL; node = list_next(node)) {
+		client_t *client = list_element(node);
+		if (client->sock_fd == socket_id)
+			return client;
+	}
+	return NULL;
+}
+
+client_t *clients_find_by_name(clients_collection_t *clients, int8_t *name) {
+	for (list_node_t *node = list_head(clients->clients_list); node != NULL; node = list_next(node)) {
+		client_t *client = list_element(node);
+		if (strcmp(client->player_name, name) == 0)
+			return client;
+	}
+	return NULL;
+}
+

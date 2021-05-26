@@ -258,11 +258,11 @@ void handle_new_client() {
 	mess_client_server_t m_client;
 
 	if (deserialize_client_message(buffer, num_bytes, &m_client) == -1) {
-		perror("handle_new_client: invalid client message\n");
+		// Invalid message.
 		return;
 	}
-	if (clients_find_client_by_session_id(clients, m_client.session_id) != NULL) {
-		perror("handle_new_client: client with provided session_id already exists\n");
+	if (m_client.player_name[0] != 0 && clients_find_by_name(clients, m_client.player_name) != NULL) {
+		// Ignore packets from different socket but with name of existing client.
 		return;
 	}
 
@@ -327,12 +327,19 @@ void handle_client_message(client_t *client) {
 
 	mess_client_server_t m_client;
 	if (deserialize_client_message(buffer, num_bytes, &m_client) == -1) {
-		fprintf(stderr, "handle_client_message: invalid client message\n");
+		// Ignore invalid message.
 		return;
 	}
-	if (client->session_id != m_client.session_id) {
-		// TODO change to correct behaviour.
-		fprintf(stderr, "handle_client_message: invalid session_id\n");
+	if (m_client.session_id < client->session_id) {
+		// Ignore message.
+		return;
+	}
+	if (m_client.session_id < client->session_id) {
+		// Reconnect client.
+		game_remove_player(game, client->session_id);
+		game_add_player(game,m_client.session_id,client->player_name);
+
+		client->session_id = m_client.session_id;
 		return;
 	}
 
@@ -348,7 +355,6 @@ void handle_clients() {
 			client_t *client = epoll_events[i].data.ptr;
 			assert(client != NULL);
 			handle_client_message(client);
-//			printf("handling client %lu\n",client->session_id); // TODO remove.
 		}
 	}
 	if (events_num == -1) {

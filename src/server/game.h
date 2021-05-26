@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "utils/list.h"
+#include "list.h"
 #include "messages.h"
 
 // Player status flags.

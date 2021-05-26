@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include "utils/stack.h"
+#include "stack.h"
 #include "messages.h"
 
 #define DEFAULT_BLOCK_SIZE 128

@@ -2,7 +2,7 @@
 #define SIK_SCREEN_WORMS_GAME_CLIENT_H
 
 #include "messages.h"
-#include "utils/list.h"
+#include "list.h"
 
 typedef struct game_client_s game_client_t;
 

@@ -13,7 +13,7 @@
 #include "err.h"
 #include <errno.h>
 #include <assert.h>
-#include "utils/utils.h"
+#include "utils.h"
 #include "gui_messages.h"
 
 #define GUI_BUFFER_SIZE 2048

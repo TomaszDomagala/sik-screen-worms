@@ -194,6 +194,9 @@ void on_event_new_game(game_event_t *event) {
 	if (event->event_no != 0) {
 		fatal("illegal event: NEW_GAME with event_no %u", event->event_no);
 	}
+	if (data.players_num < 2) {
+		fatal("illegal event: NEW_GAME with less then 2 players");
+	}
 	players_num = data.players_num;
 	players_names = data.players_names;
 	width = data.max_x;

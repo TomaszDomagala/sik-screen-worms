@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 struct list_node_s {
 	list_node_t *prev;

@@ -1,7 +1,7 @@
 #ifndef SIK_SCREEN_WORMS_GUI_CLIENT_H
 #define SIK_SCREEN_WORMS_GUI_CLIENT_H
 
-#include "utils/list.h"
+#include "list.h"
 #include "messages.h"
 #include "gui_messages.h"
 

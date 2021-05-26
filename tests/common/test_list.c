@@ -1,5 +1,5 @@
 #include "unity.h"
-#include "utils/list.h"
+#include "list.h"
 
 void setUp() {
 
