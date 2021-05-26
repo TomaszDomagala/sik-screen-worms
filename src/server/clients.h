@@ -2,6 +2,7 @@
 #define SIK_SCREEN_WORMS_CLIENTS_H
 
 #include <stdint.h>
+#include "utils/list.h"
 
 struct clients_collection_s;
 
@@ -50,5 +51,7 @@ client_t *clients_new_client(clients_collection_t *clients, uint64_t session_id,
 void clients_delete_client(clients_collection_t *clients, uint64_t session_id);
 
 client_t *clients_find_client_by_session_id(clients_collection_t *clients, uint64_t session_id);
+
+list_t *clients_get_all(clients_collection_t *clients);
 
 #endif //SIK_SCREEN_WORMS_CLIENTS_H

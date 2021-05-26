@@ -386,6 +386,18 @@ void handle_round() {
 		game_event_t *g_event = list_element(node);
 		event_storage_push(event_storage, g_event);
 	}
+
+	if (list_size(game_events) > 0) {
+		// Send new events to evert client.
+		list_t *clients_list = clients_get_all(clients);
+		game_event_t *first_new_event = list_element(list_head(game_events));
+
+		for (list_node_t *node = list_head(clients_list); node != NULL; node = list_next(node)) {
+			client_t *client = list_element(node);
+			send_events(client, first_new_event->event_no);
+		}
+	}
+
 	list_remove_all(game_events);
 	list_free(game_events);
 }

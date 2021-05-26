@@ -90,3 +90,7 @@ client_t *clients_find_client_by_session_id(clients_collection_t *clients, uint6
 	list_node_t *node = find_by_session_id(clients, session_id);
 	return node != NULL ? list_element(node) : NULL;
 }
+
+list_t *clients_get_all(clients_collection_t *clients) {
+	return clients->clients_list;
+}

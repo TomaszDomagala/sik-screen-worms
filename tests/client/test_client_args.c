@@ -66,10 +66,11 @@ void no_player_name() {
 	client_args_t args;
 	cp_res_t res = parse_client_args(argc, argv, &args);
 
-	TEST_ASSERT_EQUAL(cpr_MissingPlayerName, res);
+	TEST_ASSERT_NOT_NULL(args.player_name);
+	TEST_ASSERT_EQUAL_STRING("", args.player_name);
 }
 
-void missing_argument_value(){
+void missing_argument_value() {
 	char *argv[] = {
 			"./screen-worms-client", "server.com",
 			"-p"

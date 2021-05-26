@@ -46,6 +46,9 @@ int serialize_client_gui_message(int8_t *buffer, game_event_t *event, int8_t **n
 			return serialize_client_gui_message_pixel(buffer, event, names);
 		case GE_PLAYER_ELIMINATED:
 			return serialize_client_gui_message_player_eliminated(buffer, event, names);
+		default:
+			printf("DEFAULT: %d\n", event->type);
+			return 0;
 	}
 	assert(0);
 	return 0;

@@ -137,12 +137,16 @@ void handle_tick() {
 	client_message.turn_direction = turn_direction;
 	client_message.next_expected_event_no = next_expected_event_no;
 
-	game_client_send(game_client,&client_message);
+	game_client_send(game_client, &client_message);
 }
 
 void handle_gui_message() {
 	list_t *gui_messages = list_create(sizeof(gui_message_t));
-	gui_client_recv_event(gui_client, gui_messages);
+	int res = gui_client_recv_event(gui_client, gui_messages);
+	if (res <= 0) {
+		printf("GUI connection lost.\n");
+		exit(res != 0);
+	}
 
 	for (list_node_t *node = list_head(gui_messages); node != NULL; node = list_next(node)) {
 		gui_message_t *message = list_element(node);
@@ -192,6 +196,8 @@ void on_event_new_game(game_event_t *event) {
 	}
 	players_num = data.players_num;
 	players_names = data.players_names;
+	width = data.max_x;
+	height = data.max_y;
 }
 
 void on_event_pixel(game_event_t *event) {
@@ -200,10 +206,10 @@ void on_event_pixel(game_event_t *event) {
 	if (data.player_number >= players_num) {
 		fatal("illegal event: PIXEL player_number=%u out of range", data.player_number);
 	}
-	if (data.x > width) {
+	if (data.x >= width) {
 		fatal("illegal event: PIXEL x=%u out of range", data.x);
 	}
-	if (data.y > height) {
+	if (data.y >= height) {
 		fatal("illegal event: PIXEL y=%u out of range", data.y);
 	}
 }
@@ -249,15 +255,12 @@ void handle_server_message() {
 				on_event_player_eliminated(event);
 				break;
 			}
-			case GE_GAME_OVER:
-				break;
 			default: {
-				// Ignore correct event with unknown type.
+				// GAME_OVER or unknown type. Ignore event.
 				next_expected_event_no++;
 				continue;
 			}
 		}
-
 		if (gui_client_send_event(gui_client, event, players_names) == -1) {
 			break;
 		}

@@ -102,12 +102,15 @@ int gui_client_recv_event(gui_client_t *client, list_t *gui_messages) {
 	memset(client->buffer, 0, GUI_BUFFER_SIZE);
 
 	while ((rec = recv(client->sock_fd, client->buffer + total_rec, space_left, MSG_DONTWAIT)) > 0) {
-		printf("rec %d\n", rec);
 		total_rec += rec;
 		space_left -= rec;
 	}
-	if (rec == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-		printf("would block\n");
+	if (rec == -1 && errno != EAGAIN && errno != EWOULDBLOCK) {
+		printf("gui_client_recv_event: recv");
+		return -1;
+	}
+	if (rec == 0) {
+		return 0;
 	}
 
 	int8_t *buffer = client->buffer;
@@ -120,7 +123,7 @@ int gui_client_recv_event(gui_client_t *client, list_t *gui_messages) {
 		list_add(gui_messages, &message);
 	}
 
-	return 0;
+	return total_rec;
 }
 
 
