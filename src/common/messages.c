@@ -2,7 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include "crc32.h"
+#include "utils/utils.h"
 
 #if defined(__linux__)
 

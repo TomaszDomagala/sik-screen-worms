@@ -41,7 +41,7 @@
  *
  * CRC32 code derived from work by Gary S. Brown.
  */
-#include "crc32.h"
+#include "utils/utils.h"
 #include <stdint.h>
 #include <stdlib.h>
 

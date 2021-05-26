@@ -10,6 +10,7 @@
 #include "err.h"
 #include <errno.h>
 #include "utils/list.h"
+#include "utils/utils.h"
 #include "messages.h"
 #include <assert.h>
 
@@ -20,17 +21,6 @@ struct game_client_s {
 	int8_t buffer[CLIENT_BUFFER_SIZE];
 };
 
-// TODO export this function to commons
-void *get_in_addr(struct sockaddr *addr) {
-	switch (addr->sa_family) {
-		case AF_INET:
-			return &(((struct sockaddr_in *) addr)->sin_addr);
-		case AF_INET6:
-			return &(((struct sockaddr_in6 *) addr)->sin6_addr);
-	}
-	fatal("get_in_addr: invalid sa_family");
-	return NULL;
-}
 
 game_client_t *game_client_connect(char *address, char *port) {
 	game_client_t *client = malloc(sizeof(game_client_t));
@@ -139,6 +129,6 @@ int game_client_recv(game_client_t *client, uint32_t *game_id, list_t *events) {
 	return 0;
 }
 
-int game_client_socket(game_client_t *client){
+int game_client_socket(game_client_t *client) {
 	return client->sock_fd;
 }
