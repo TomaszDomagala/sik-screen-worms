@@ -48,7 +48,7 @@ void test_event_pixel_message() {
 	ser_len = serialize_game_event(buffer, &in_event);
 	TEST_ASSERT_EQUAL(22, ser_len);
 
-	des_len = deserialize_game_event(buffer, &out_event);
+	des_len = deserialize_game_event(buffer, ser_len, &out_event);
 	TEST_ASSERT_EQUAL(22, des_len);
 
 	TEST_ASSERT_EQUAL(1, out_event.event_no);
@@ -70,7 +70,7 @@ void test_event_player_eliminated_message() {
 	ser_len = serialize_game_event(buffer, &in_event);
 	TEST_ASSERT_EQUAL(14, ser_len);
 
-	des_len = deserialize_game_event(buffer, &out_event);
+	des_len = deserialize_game_event(buffer, ser_len, &out_event);
 	TEST_ASSERT_EQUAL(14, des_len);
 
 	TEST_ASSERT_EQUAL(1, out_event.event_no);
@@ -89,7 +89,7 @@ void test_event_game_over_message() {
 	ser_len = serialize_game_event(buffer, &in_event);
 	TEST_ASSERT_EQUAL(13, ser_len);
 
-	des_len = deserialize_game_event(buffer, &out_event);
+	des_len = deserialize_game_event(buffer, ser_len, &out_event);
 	TEST_ASSERT_EQUAL(13, des_len);
 
 	TEST_ASSERT_EQUAL(1, out_event.event_no);
@@ -117,7 +117,7 @@ void test_event_new_game_message() {
 	// 13 + 8 + 5 + 4 + 9 = 39
 	TEST_ASSERT_EQUAL(39, ser_len);
 
-	des_len = deserialize_game_event(buffer, &out_event);
+	des_len = deserialize_game_event(buffer, ser_len, &out_event);
 	TEST_ASSERT_EQUAL(39, des_len);
 
 	TEST_ASSERT_EQUAL(20, out_event.event_no);

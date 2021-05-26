@@ -2,6 +2,7 @@
 #define SIK_SCREEN_WORMS_MESSAGES_H
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #define MESS_MAX_SIZE 550
 
@@ -61,6 +62,6 @@ int deserialize_client_message(mess_binary_t *m_binary, mess_client_server_t *m_
 
 int serialize_game_event(int8_t *buffer, game_event_t *event);
 
-int deserialize_game_event(int8_t *buffer, game_event_t *event);
+int deserialize_game_event(int8_t *buffer, size_t buffer_len, game_event_t *event);
 
 #endif //SIK_SCREEN_WORMS_MESSAGES_H
