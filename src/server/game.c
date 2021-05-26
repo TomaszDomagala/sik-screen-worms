@@ -198,6 +198,36 @@ void save_players_names(game_t *game) {
 	}
 }
 
+/**
+ * Sort players list in alphabetical order.
+ * @param players - list of players to sort.
+ */
+void sort_players(list_t *players) {
+	list_t *sorted = list_create(sizeof(player_t));
+	list_node_t *min_node;
+	player_t *min_player;
+
+	while (list_size(players)) {
+		min_node = list_head(players);
+		min_player = list_element(min_node);
+
+		for (list_node_t *node = list_next(min_node); node != NULL; node = list_next(node)) {
+			player_t *player = list_element(node);
+			if (strcmp(player->player_name, min_player->player_name) < 0) {
+				min_node = node;
+				min_player = player;
+			}
+		}
+		list_add(sorted, min_player);
+		list_remove(players, min_node);
+	}
+	for (list_node_t *node = list_head(sorted); node != NULL; node = list_next(node)) {
+		list_add(players, list_element(node));
+	}
+	list_remove_all(sorted);
+	list_free(sorted);
+}
+
 list_t *game_tick_waiting(game_t *game) {
 	if (game->players_ready > 1 && list_size(game->waiting) == game->players_ready) {
 		// If there are at least 2 players and all of them are ready, start the game.
@@ -211,6 +241,7 @@ list_t *game_tick_waiting(game_t *game) {
 	game->players = game->waiting;
 	game->waiting = temp;
 	game->players_alive = list_size(game->players);
+	sort_players(game->players);
 
 	list_t *events = list_create(sizeof(game_event_t));
 
