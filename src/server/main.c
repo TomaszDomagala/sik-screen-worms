@@ -167,7 +167,7 @@ void init_epoll() {
 
 void init_game() {
 	rand_set(args.rng_seed);
-	game = game_create(args.board_width, args.board_height);
+	game = game_create(args.board_width, args.board_height, args.turning_speed);
 }
 
 
@@ -336,7 +336,7 @@ void handle_client_message(client_t *client) {
 	if (m_client.session_id < client->session_id) {
 		// Reconnect client.
 		game_remove_player(game, client->session_id);
-		game_add_player(game,m_client.session_id,client->player_name);
+		game_add_player(game, m_client.session_id, client->player_name);
 
 		client->session_id = m_client.session_id;
 		return;

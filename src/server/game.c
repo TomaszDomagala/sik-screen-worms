@@ -20,6 +20,7 @@ struct game_s {
 	uint32_t game_id;
 	size_t width;
 	size_t height;
+	uint32_t turning_speed;
 	uint32_t next_event_no;
 
 	list_t *players;
@@ -34,7 +35,7 @@ struct game_s {
 	int8_t **players_names;
 };
 
-game_t *game_create(size_t width, size_t height) {
+game_t *game_create(size_t width, size_t height, uint32_t turning_speed) {
 	game_t *game = malloc(sizeof(game_t));
 	if (game == NULL)
 		return NULL;
@@ -49,6 +50,7 @@ game_t *game_create(size_t width, size_t height) {
 
 	game->width = width;
 	game->height = height;
+	game->turning_speed = turning_speed;
 	game->next_event_no = 0;
 
 	game->players_alive = 0;
@@ -307,12 +309,12 @@ list_t *game_tick_in_progress(game_t *game) {
 		// Change player direction.
 		switch (player->turn_direction) {
 			case PD_RIGHT:
-				player->direction++;
+				player->direction += game->turning_speed;
 				if (player->direction >= 360)
 					player->direction = 0;
 				break;
 			case PD_LEFT:
-				player->direction--;
+				player->direction -= game->turning_speed;
 				if (player->direction >= 360)
 					player->direction = 359;
 				break;

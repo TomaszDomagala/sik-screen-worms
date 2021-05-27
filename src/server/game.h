@@ -31,7 +31,7 @@ typedef struct {
 	double y_pos;
 } player_t;
 
-game_t *game_create(size_t width, size_t height);
+game_t *game_create(size_t width, size_t height, uint32_t turning_speed);
 
 bool game_in_progress(game_t *game);
 

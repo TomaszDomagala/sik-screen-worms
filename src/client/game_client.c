@@ -28,7 +28,7 @@ game_client_t *game_client_connect(char *address, char *port) {
 		return NULL;
 
 	struct addrinfo hints, *gui_info, *info;
-	int status, sock_fd, tcp_no_delay_on = 1;
+	int status, sock_fd;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
